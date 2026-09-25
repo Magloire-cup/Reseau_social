@@ -4,19 +4,23 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch backend/server.ts",
-    "start": "tsx backend/server.ts",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@upstash/redis": "^1.34.3",
-    "nodemailer": "^7.0.6"
+    "@google/genai": "^1.16.0",
+    "@supabase/ssr": "^0.7.0",
+    "@supabase/supabase-js": "^2.49.8",
+    "next": "^15.5.4",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
-    "@types/nodemailer": "^6.4.7",
-    "@vercel/node": "^5.1.16",
-    "tsx": "^4.19.2",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
     "typescript": "^5.7.2"
   }
 }
