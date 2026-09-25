@@ -42,6 +42,7 @@ button { border: 0; cursor: pointer; }
 .auth-heading { max-width: 530px; margin-top: 25vh; }
 .eyebrow { color: var(--accent-dark); font-size: .7rem; font-weight: 700; letter-spacing: .16em; }
 .auth-heading h1 { max-width: 540px; margin: 16px 0 20px; overflow-wrap: anywhere; font-family: 'Space Grotesk', sans-serif; font-size: clamp(2.5rem, 5vw, 4.8rem); line-height: 1.03; letter-spacing: -.06em; }
+.auth-heading h1 span { color: var(--accent-dark); }
 .auth-heading p { max-width: 430px; color: var(--muted); font-size: 1.05rem; overflow-wrap: anywhere; }
 .auth-card { padding: 36px; border: 1px solid rgba(225, 234, 230, .8); border-radius: 24px; background: rgba(255,255,255,.78); box-shadow: var(--shadow); backdrop-filter: blur(18px); }
 body.dark .auth-card { background: rgba(25, 33, 31, .88); border-color: var(--line); }
@@ -59,6 +60,8 @@ body.dark .auth-card { background: rgba(25, 33, 31, .88); border-color: var(--li
 .wide { width: 100%; }
 .form-message { min-height: 20px; margin: 0; color: #c14b4b; font-size: .78rem; }
 .demo-note { margin: 22px 0 0; color: var(--muted); font-size: .72rem; text-align: center; }
+.auth-help-link { display: block; margin-top: 13px; color: var(--accent-dark); font-size: .76rem; font-weight: 700; text-align: center; text-decoration: none; }
+.auth-help-link:hover { text-decoration: underline; }
 
 .social-app { position: relative; z-index: 1; min-height: 100vh; }
 .topbar { position: relative; z-index: 5; display: flex; align-items: center; justify-content: space-between; height: 76px; padding: 0 clamp(18px, 4vw, 54px); border-bottom: 1px solid var(--line); background: rgba(255,255,255,.78); backdrop-filter: blur(18px); }
