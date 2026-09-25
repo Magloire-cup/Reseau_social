@@ -52,31 +52,38 @@
 		<header class="topbar">
 			<a class="app-brand" href="#" aria-label="Accueil Pulse"><span class="brand-mark">✦</span><strong>PULSE</strong></a>
 			<div class="topbar-actions">
+				<label class="language-picker" aria-label="Choisir la langue">
+					<span class="language-label">FR</span>
+					<select id="languageSelect" aria-label="Choix de langue">
+						<option value="fr">FR</option>
+						<option value="en">EN</option>
+					</select>
+				</label>
+				<a class="ai-nav-button" href="ai.html" aria-label="Aller à l'assistant IA"><span class="ai-spark">✦</span><span>IA</span></a>
 				<button id="themeButton" class="icon-button" type="button" title="Changer de thème" aria-label="Changer de thème">☼</button>
 				<button id="profileButton" class="profile-chip" type="button"><span id="profileAvatar" class="avatar avatar-small">P</span><span id="profileName">Profil</span><span class="chevron">⌄</span></button>
-				<div id="profileMenu" class="profile-menu hidden"><a href="profil.html">Mon profil</a><a href="ai.html">Assistant Gemini <span class="menu-badge ai-badge">✦</span></a><a href="notifications.html">Notifications <span class="menu-badge">3</span></a><a href="parametres.html">Paramètres</a><button id="logoutButton" type="button">Se déconnecter</button></div>
+				<div id="profileMenu" class="profile-menu hidden"><a href="profil.html">Mon profil</a><a href="ai.html">Assistant IA <span class="menu-badge ai-badge">✦</span></a><a href="notifications.html">Notifications <span class="menu-badge">3</span></a><a href="parametres.html">Paramètres</a><button id="logoutButton" type="button">Se déconnecter</button></div>
 			</div>
 		</header>
 
 		<main class="workspace">
 			<aside id="sidebar" class="sidebar">
 				<div class="sidebar-heading">
-					<div><span class="eyebrow">TON ESPACE</span><h2>Messages</h2></div>
+					<div><span class="eyebrow" data-i18n="spaceEyebrow">TON ESPACE</span><h2 data-i18n="messagesTitle">Messages</h2></div>
 					<button id="newChatButton" class="round-button" type="button" title="Nouvelle conversation" aria-label="Nouvelle conversation">+</button>
 				</div>
-				<div class="search-box"><span>⌕</span><input id="chatSearch" type="search" placeholder="Rechercher une conversation" aria-label="Rechercher une conversation"></div>
-				<div class="sidebar-actions"><button class="filter-button active" type="button" data-filter="all">Tout</button><button class="filter-button" type="button" data-filter="unread">Non lus</button><button id="newGroupButton" class="filter-button group-action" type="button">＋ Groupe</button></div>
-				<a class="ai-shortcut" href="ai.html"><span class="ai-spark">✦</span><span><strong>Parler à Gemini</strong><small>Rédiger, organiser, comprendre</small></span><span>→</span></a>
+				<div class="search-box"><span>⌕</span><input id="chatSearch" type="search" data-i18n-placeholder="searchPlaceholder" placeholder="Rechercher une conversation" aria-label="Rechercher une conversation"></div>
+				<div class="sidebar-actions"><button class="filter-button active" type="button" data-filter="all" data-i18n="allFilter">Tout</button><button class="filter-button" type="button" data-filter="unread" data-i18n="unreadFilter">Non lus</button><button id="newGroupButton" class="filter-button group-action" type="button" data-i18n="groupAction">＋ Groupe</button></div>
 				<div id="conversationList" class="conversation-list"></div>
-				<div class="sidebar-footer"><span class="status-dot"></span><span>Pulse est prêt</span></div>
+				<div class="sidebar-footer"><span class="status-dot"></span><span data-i18n="pulseReady">Pulse est prêt</span></div>
 			</aside>
 
 			<section id="conversationPanel" class="conversation-panel">
-				<div id="emptyConversation" class="empty-conversation"><div class="empty-orbit"><span>✦</span></div><h2>Choisis une conversation</h2><p>Ouvre un échange ou commence une nouvelle discussion avec une adresse email.</p><button id="emptyNewChatButton" class="secondary-button" type="button">Nouvelle conversation</button></div>
+				<div id="emptyConversation" class="empty-conversation"><div class="empty-orbit"><span>✦</span></div><h2 data-i18n="emptyConversationTitle">Choisis une conversation</h2><p data-i18n="emptyConversationText">Ouvre un échange ou commence une nouvelle discussion avec une adresse email.</p><button id="emptyNewChatButton" class="secondary-button" type="button" data-i18n="newConversationButton">Nouvelle conversation</button></div>
 				<div id="activeConversation" class="active-conversation hidden">
 					<header class="conversation-header"><button id="backToSidebar" class="mobile-back icon-button" type="button" aria-label="Retour aux conversations">←</button><div id="activeAvatar" class="avatar">P</div><div class="conversation-title"><h2 id="activeTitle">Conversation</h2><p id="activeSubtitle">En ligne</p></div><div class="conversation-tools"><button class="icon-button" type="button" title="Appel audio">⌕</button><button class="icon-button" type="button" title="Appel vidéo">▣</button><button class="icon-button" type="button" title="Plus d'options">•••</button></div></header>
 					<div id="messageList" class="message-list"></div>
-					<form id="messageForm" class="message-composer"><button class="icon-button composer-icon" type="button" title="Ajouter une pièce jointe">＋</button><input id="messageInput" type="text" placeholder="Écrire un message..." autocomplete="off" required><button class="send-button" type="submit" aria-label="Envoyer le message">➤</button></form>
+					<form id="messageForm" class="message-composer"><button class="icon-button composer-icon" type="button" title="Ajouter une pièce jointe">＋</button><input id="messageInput" type="text" data-i18n-placeholder="messagePlaceholder" placeholder="Écrire un message..." autocomplete="off" required><button class="send-button" type="submit" aria-label="Envoyer le message">➤</button></form>
 				</div>
 			</section>
 		</main>

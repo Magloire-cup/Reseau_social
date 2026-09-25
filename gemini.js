@@ -1,11 +1,72 @@
 const AI_HISTORY_PREFIX = "pulse-ai-conversation-";
+const LANG_KEY = "pulse-language";
 const aiMessages = document.querySelector("#aiMessages");
 const aiForm = document.querySelector("#aiForm");
 const aiInput = document.querySelector("#aiInput");
 const aiStatus = document.querySelector("#aiStatus");
+const themeButton = document.querySelector("#pageThemeButton") || document.querySelector("#themeButton");
+const languageSelect = document.querySelector("#pageLanguageSelect") || document.querySelector("#languageSelect");
 const currentUser = JSON.parse(localStorage.getItem("pulse-user") || "null");
 const userKey = currentUser?.email || "anonymous";
 const historyKey = `${AI_HISTORY_PREFIX}${userKey}`;
+
+const translations = {
+    fr: {
+        assistantIntro: "Je suis l’assistant Pulse. Je peux t’aider à rédiger, résumer ou organiser une idée.",
+        statusThinking: "L’assistant réfléchit...",
+        statusReady: "Mode local JS actif : réponse générée dans le navigateur.",
+        statusError: "Mode local JS actif : réponse générée directement dans le navigateur.",
+        aiStatusReady: "Prêt à discuter.",
+        resetStatus: "Ancienne discussion supprimée."
+    },
+    en: {
+        assistantIntro: "I am the Pulse assistant. I can help you draft, summarize, or organize an idea.",
+        statusThinking: "The assistant is thinking...",
+        statusReady: "Local JS mode active: the answer was generated in the browser.",
+        statusError: "Local JS mode active: the answer was generated directly in the browser.",
+        aiStatusReady: "Ready to chat.",
+        resetStatus: "Previous discussion cleared."
+    }
+};
+
+function applyLanguage(locale = localStorage.getItem(LANG_KEY) || "fr") {
+    const lang = translations[locale] ? locale : "fr";
+    const labels = document.querySelectorAll(".language-label");
+    labels.forEach(label => label.textContent = lang.toUpperCase());
+    if (languageSelect) languageSelect.value = lang;
+    if (aiStatus) aiStatus.textContent = translations[lang].aiStatusReady;
+    document.documentElement.lang = lang;
+    localStorage.setItem(LANG_KEY, lang);
+}
+
+function bindLanguageSelector() {
+    if (!languageSelect) return;
+    languageSelect.addEventListener("change", event => applyLanguage(event.target.value));
+    applyLanguage(languageSelect.value || localStorage.getItem(LANG_KEY) || "fr");
+}
+
+function setStatus(message) {
+    if (aiStatus) aiStatus.textContent = message;
+}
+
+function applyTheme(theme) {
+    const resolvedTheme = theme === "dark" ? "dark" : "light";
+    document.body.classList.toggle("dark", resolvedTheme === "dark");
+    localStorage.setItem("pulse-theme", resolvedTheme);
+    if (themeButton) {
+        themeButton.textContent = resolvedTheme === "dark" ? "☀" : "☼";
+    }
+}
+
+function initTheme() {
+    if (!themeButton) return;
+    const savedTheme = localStorage.getItem("pulse-theme") || "light";
+    applyTheme(savedTheme);
+    themeButton.addEventListener("click", () => {
+        const nextTheme = document.body.classList.contains("dark") ? "light" : "dark";
+        applyTheme(nextTheme);
+    });
+}
 
 function getHistory() {
     try { return JSON.parse(localStorage.getItem(historyKey) || "[]"); } catch { return []; }
@@ -16,12 +77,13 @@ function saveHistory(history) {
 }
 
 function addMessage(text, role = "model") {
+    if (!aiMessages) return;
     const wrapper = document.createElement("div");
     wrapper.className = `ai-message ${role === "user" ? "user" : ""}`;
     const bubble = document.createElement("div");
     const label = document.createElement("p");
     label.className = "ai-message-label";
-    label.textContent = role === "user" ? "Toi" : "Gemini · Pulse";
+    label.textContent = role === "user" ? "Toi" : "Assistant Pulse";
     const content = document.createElement("div");
     content.className = "ai-message-bubble";
     content.textContent = text;
@@ -34,7 +96,8 @@ function addMessage(text, role = "model") {
 function loadConversation() {
     const history = getHistory();
     if (!history.length) {
-        addMessage("Je suis Gemini, l'assistant de Pulse. Je peux t'aider à rédiger, résumer ou organiser une idée.");
+        const lang = localStorage.getItem(LANG_KEY) || "fr";
+        addMessage((translations[lang] || translations.fr).assistantIntro);
         return;
     }
     history.forEach(message => addMessage(message.text, message.role));
@@ -83,6 +146,7 @@ function buildLocalReply(prompt, context = []) {
 async function askGemini(contents) {
     const payload = { contents, context: getPulseContext() };
     const latestPrompt = (contents || []).slice().reverse().find(message => message.role === "user")?.parts?.[0]?.text || "conversation";
+    const lang = localStorage.getItem(LANG_KEY) || "fr";
 
     if (window.location.protocol === "file:") {
         return buildLocalReply(latestPrompt, payload.context || getPulseContext());
@@ -100,41 +164,46 @@ async function askGemini(contents) {
         try { data = JSON.parse(responseText); } catch { data = { text: responseText }; }
 
         if (!response.ok) {
-            throw new Error(data.error || data.message || responseText || "Gemini est indisponible.");
+            throw new Error(data.error || data.message || responseText || "L’assistant est indisponible.");
         }
 
-        return data.text || responseText || "Je n’ai pas eu de réponse de Gemini.";
+        return data.text || responseText || "Je n’ai pas eu de réponse de l’assistant.";
     } catch (error) {
         return buildLocalReply(latestPrompt, payload.context || getPulseContext());
     }
 }
 
-aiForm?.addEventListener("submit", async event => {
-    event.preventDefault();
-    const prompt = aiInput.value.trim();
-    if (!prompt) return;
-    const history = getHistory();
-    history.push({ role: "user", parts: [{ text: prompt }], text: prompt });
-    addMessage(prompt, "user");
-    aiInput.value = "";
-    aiStatus.textContent = "Gemini réfléchit...";
-    aiForm.classList.add("ai-loading");
-    try {
-        const answer = await askGemini(history.map(message => ({ role: message.role, parts: message.parts || [{ text: message.text }] })));
-        history.push({ role: "model", parts: [{ text: answer }], text: answer });
-        addMessage(answer);
-        saveHistory(history);
-        aiStatus.textContent = "Mode local JS actif : réponse générée dans le navigateur.";
-    } catch (error) {
-        history.pop();
-        saveHistory(history);
-        addMessage(`Impossible de joindre Gemini : ${error.message}`);
-        aiStatus.textContent = "Mode local JS actif : réponse générée directement dans le navigateur.";
-    } finally {
-        aiForm.classList.remove("ai-loading");
-        aiInput.focus();
-    }
-});
+if (aiForm && aiInput) {
+    aiForm.addEventListener("submit", async event => {
+        event.preventDefault();
+        const prompt = aiInput.value.trim();
+        if (!prompt) return;
+        const history = getHistory();
+        history.push({ role: "user", parts: [{ text: prompt }], text: prompt });
+        addMessage(prompt, "user");
+        aiInput.value = "";
+        setStatus((translations[localStorage.getItem(LANG_KEY) || "fr"] || translations.fr).statusThinking);
+        aiForm.classList.add("ai-loading");
+        try {
+            const answer = await askGemini(history.map(message => ({ role: message.role, parts: message.parts || [{ text: message.text }] })));
+            history.push({ role: "model", parts: [{ text: answer }], text: answer });
+            addMessage(answer);
+            saveHistory(history);
+            setStatus((translations[localStorage.getItem(LANG_KEY) || "fr"] || translations.fr).statusReady);
+        } catch (error) {
+            const lastMessage = history[history.length - 1];
+            if (lastMessage && lastMessage.role === "user") {
+                history.pop();
+            }
+            saveHistory(history);
+            addMessage(`Impossible de joindre l’assistant : ${error.message || "erreur inconnue"}`);
+            setStatus((translations[localStorage.getItem(LANG_KEY) || "fr"] || translations.fr).statusError);
+        } finally {
+            aiForm.classList.remove("ai-loading");
+            aiInput.focus();
+        }
+    });
+}
 
 document.querySelectorAll(".ai-suggestion").forEach(button => button.addEventListener("click", () => {
     aiInput.value = button.textContent;
@@ -143,9 +212,13 @@ document.querySelectorAll(".ai-suggestion").forEach(button => button.addEventLis
 
 document.querySelector("#clearAiButton")?.addEventListener("click", () => {
     localStorage.removeItem(historyKey);
-    aiMessages.innerHTML = "";
+    if (aiMessages) {
+        aiMessages.innerHTML = "";
+    }
     loadConversation();
-    aiStatus.textContent = "Ancienne discussion supprimée.";
+    setStatus((translations[localStorage.getItem(LANG_KEY) || "fr"] || translations.fr).resetStatus);
 });
 
+initTheme();
+bindLanguageSelector();
 loadConversation();
