@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from "next/server";
+import { createServerSupabase } from "../../../lib/supabase/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -20,6 +21,17 @@ export async function POST(request: Request) {
         if (!body.conversationId || !last?.content?.trim()) return NextResponse.json({ error: "Message invalide." }, { status: 400 });
         if (last.content.length > 4000) return NextResponse.json({ error: "Message trop long." }, { status: 413 });
 
+        const supabase = await createServerSupabase();
+        let currentUserId: string | null = null;
+        if (supabase) {
+            const auth = await supabase.auth.getUser();
+            if (auth.error || !auth.data.user) return NextResponse.json({ error: "Vous devez être connecté." }, { status: 401 });
+            currentUserId = auth.data.user.id;
+            const membership = await supabase.from("conversation_members").select("conversation_id").eq("conversation_id", body.conversationId).eq("user_id", currentUserId).maybeSingle();
+            if (membership.error || !membership.data) return NextResponse.json({ error: "Conversation inaccessible." }, { status: 403 });
+            if (last.role === "user") await supabase.from("messages").insert({ conversation_id: body.conversationId, sender_id: currentUserId, content: last.content, type: "text", status: "sent" });
+        }
+
         let content = fallback(last.content, body.language === "en" ? "en" : "fr");
         if (process.env.GEMINI_API_KEY) {
             const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -30,7 +42,9 @@ export async function POST(request: Request) {
             });
             content = result.text || content;
         }
-        return NextResponse.json({ message: { id: crypto.randomUUID(), role: "assistant", content, createdAt: new Date().toISOString() } });
+        const message = { id: crypto.randomUUID(), role: "assistant" as const, content, createdAt: new Date().toISOString() };
+        if (supabase && currentUserId) await supabase.from("messages").insert({ id: message.id, conversation_id: body.conversationId, sender_id: null, content, type: "ai", status: "sent" });
+        return NextResponse.json({ message });
     } catch (error) {
         console.error("/api/chat", error);
         return NextResponse.json({ error: "Impossible de générer la réponse Gemini." }, { status: 502 });

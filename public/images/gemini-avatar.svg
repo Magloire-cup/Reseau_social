@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Gemini AI</title>
+  <desc id="desc">Avatar abstrait de l'assistant Gemini</desc>
+  <defs><linearGradient id="g" x1="12" y1="12" x2="116" y2="116" gradientUnits="userSpaceOnUse"><stop stop-color="#00a884"/><stop offset="1" stop-color="#4d93ff"/></linearGradient></defs>
+  <circle cx="64" cy="64" r="60" fill="url(#g)"/>
+  <path d="M64 20l9.2 26.8L100 56l-26.8 9.2L64 92l-9.2-26.8L36 56l18.8-9.2L64 20z" fill="white"/>
+  <circle cx="97" cy="95" r="12" fill="#d9fdd3"/>
+  <path d="M97 89v12M91 95h12" stroke="#087b65" stroke-width="3" stroke-linecap="round"/>
+</svg>

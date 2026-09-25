@@ -1,7 +1,9 @@
-:root { --bg: #e9edef; --panel: #f7f9f8; --surface: #fff; --text: #1f2c32; --muted: #6b7c83; --line: #dce4e3; --green: #00a884; --green-soft: #d9fdd3; --shadow: 0 18px 60px rgba(39, 60, 66, .12); }
+:root { --bg: #e9edef; --panel: #f7f9f8; --surface: #fff; --text: #1f2c32; --muted: #6b7c83; --line: #dce4e3; --green: #00a884; --green-soft: #d9fdd3; --chat-bg: #efeae2; --bubble: #fff; --hover: #e1f5ef; --shadow: 0 18px 60px rgba(39, 60, 66, .12); }
+[data-theme="dark"] { --bg: #111b21; --panel: #202c33; --surface: #202c33; --text: #e9edef; --muted: #aebac1; --line: #344047; --green: #00a884; --green-soft: #005c4b; --chat-bg: #0b141a; --bubble: #202c33; --hover: #2a3942; --shadow: 0 18px 60px rgba(0, 0, 0, .35); }
 * { box-sizing: border-box; }
 html, body { min-height: 100%; margin: 0; }
-body { background: radial-gradient(circle at 10% 0%, #d8f4ed, transparent 32%), var(--bg); color: var(--text); font-family: ui-sans-serif, system-ui, sans-serif; }
+body { background: radial-gradient(circle at 10% 0%, #d8f4ed, transparent 32%), var(--bg); color: var(--text); font-family: ui-sans-serif, system-ui, sans-serif; transition: background-color .2s ease, color .2s ease; }
+[data-theme="dark"] body { background: radial-gradient(circle at 10% 0%, #173b35, transparent 32%), var(--bg); }
 button, input, textarea { font: inherit; }
 button { cursor: pointer; }
 .pulse-shell { display: grid; grid-template-columns: 330px minmax(0, 1fr); width: min(1440px, calc(100% - 32px)); height: min(900px, calc(100vh - 40px)); margin: 20px auto; overflow: hidden; border-radius: 18px; background: var(--surface); box-shadow: var(--shadow); }
@@ -16,14 +18,14 @@ button { cursor: pointer; }
 .search input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--text); }
 .conversation-list { flex: 1; overflow: auto; padding: 0 8px; }
 .conversation { display: flex; align-items: center; gap: 11px; width: 100%; padding: 12px 10px; border: 0; border-radius: 10px; background: transparent; text-align: left; color: var(--text); }
-.conversation:hover, .conversation.active { background: #e1f5ef; }
-.avatar { display: grid; place-items: center; flex: 0 0 auto; width: 43px; height: 43px; border-radius: 50%; background: #dcefeb; color: #087b65; font-weight: 800; }
+.conversation:hover, .conversation.active { background: var(--hover); }
+.avatar { display: grid; place-items: center; flex: 0 0 auto; width: 43px; height: 43px; border-radius: 50%; background: #dcefeb; color: #087b65; font-weight: 800; object-fit: cover; }
 .conversation-copy { min-width: 0; flex: 1; }
 .conversation-line { display: flex; justify-content: space-between; gap: 8px; }
 .conversation-name, .conversation-preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .conversation-name { font-weight: 700; }
 .conversation-preview, .conversation-time, .status { color: var(--muted); font-size: .78rem; }
-.chat-panel { display: grid; grid-template-rows: auto 1fr auto; min-width: 0; background: #efeae2; }
+.chat-panel { display: grid; grid-template-rows: auto 1fr auto; min-width: 0; background: var(--chat-bg); }
 .chat-header { background: var(--surface); }
 .chat-title { flex: 1; }
 .chat-title h2 { margin: 0; font-size: 1rem; }
@@ -31,7 +33,7 @@ button { cursor: pointer; }
 .message-list { overflow: auto; padding: 28px clamp(16px, 5vw, 90px); background-image: radial-gradient(rgba(66, 90, 90, .08) 1px, transparent 1px); background-size: 18px 18px; }
 .message-row { display: flex; margin-bottom: 10px; }
 .message-row.outgoing { justify-content: flex-end; }
-.bubble { max-width: min(620px, 82%); padding: 10px 13px; border-radius: 4px 13px 13px 13px; background: white; box-shadow: 0 1px 2px rgba(0,0,0,.08); white-space: pre-wrap; }
+.bubble { max-width: min(620px, 82%); padding: 10px 13px; border-radius: 4px 13px 13px 13px; background: var(--bubble); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.08); white-space: pre-wrap; }
 .outgoing .bubble { border-radius: 13px 4px 13px 13px; background: var(--green-soft); }
 .message-meta { display: block; margin-top: 5px; color: var(--muted); font-size: .68rem; text-align: right; }
 .composer { display: flex; gap: 8px; padding: 12px 18px; background: var(--surface); }
