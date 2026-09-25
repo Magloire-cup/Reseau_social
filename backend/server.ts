@@ -10,7 +10,6 @@ import type { Conversation, Database, PublicUser, User } from "./types.js";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const port = Number(process.env.PORT || 3000);
 const sessionSecret = process.env.SESSION_SECRET || "development-only-secret";
-const sessions = new Map<string, { userId: string; expiresAt: number }>();
 const presence = new Map<string, number>();
 const rateLimits = new Map<string, { count: number; resetAt: number }>();
 const contentTypes: Record<string, string> = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8" };
@@ -55,15 +54,18 @@ function sessionUser(request: IncomingMessage, database: Database): User | null 
     if (!value) return null;
     const [token, signature] = value.split(".");
     if (!token || !signature || !constantTimeStringEqual(signature, signSession(token, sessionSecret))) return null;
-    const session = sessions.get(token);
-    if (!session || session.expiresAt < Date.now()) return null;
-    return database.users.find(user => user.id === session.userId) || null;
+    const [userId, expiresAt] = token.split(":");
+    if (!userId || Number(expiresAt) < Date.now()) return null;
+    return database.users.find(user => user.id === userId) || null;
 }
 
 function setSession(user: User, response: ServerResponse): void {
-    const token = Buffer.from(`${user.id}:${Date.now()}:${Math.random()}`).toString("base64url");
-    sessions.set(token, { userId: user.id, expiresAt: Date.now() + 604800000 });
+    const token = `${user.id}:${Date.now() + 604800000}:${randomToken()}`;
     response.setHeader("Set-Cookie", `pulse_session=${token}.${signSession(token, sessionSecret)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800`);
+}
+
+function randomToken(): string {
+    return Math.random().toString(36).slice(2);
 }
 
 function requireUser(request: IncomingMessage, response: ServerResponse, database: Database): User | null {
@@ -73,12 +75,12 @@ function requireUser(request: IncomingMessage, response: ServerResponse, databas
     return user;
 }
 
-function publicConversation(conversation: Conversation, user: User): Conversation & { messages: Conversation["messages"] } {
-    const other = conversation.memberIds.map(id => readDatabase().users.find(item => item.id === id)).find(item => item && item.id !== user.id);
+function publicConversation(conversation: Conversation, user: User, database: Database): Conversation & { messages: Conversation["messages"] } {
+    const other = conversation.memberIds.map(id => database.users.find(item => item.id === id)).find(item => item && item.id !== user.id);
     return {
         ...conversation,
         contactOnline: Boolean(other && (presence.get(other.id) || 0) > Date.now() - 30000),
-        blocked: Boolean(other && blocked(readDatabase(), user, other)),
+        blocked: Boolean(other && blocked(database, user, other)),
         messages: conversation.messages.map(message => ({ ...message, outgoing: message.authorId === user.id }))
     };
 }
@@ -109,7 +111,7 @@ async function askAi(prompt: string, language: string): Promise<string> {
 }
 
 async function handleApi(request: IncomingMessage, response: ServerResponse, pathname: string): Promise<void> {
-    const database = readDatabase();
+    const database = await readDatabase();
     if (pathname === "/api/health") return json(response, 200, { ok: true, service: "pulse" });
 
     if (pathname === "/api/auth/register" || pathname === "/api/auth/login") {
@@ -122,7 +124,7 @@ async function handleApi(request: IncomingMessage, response: ServerResponse, pat
             if (database.users.some(user => user.email === email)) return json(response, 409, { error: "Cette adresse possède déjà un compte." });
             const user: User = { id: makeId("user"), code: makeUserCode(), name: String(input.name || "").trim().slice(0, 80), email, passwordHash: await hashPassword(password), blockedUserIds: [], createdAt: Date.now() };
             if (user.name.length < 2) return json(response, 400, { error: "Le nom est obligatoire." });
-            database.users.push(user); writeDatabase(database); setSession(user, response); presence.set(user.id, Date.now() + 30000);
+            database.users.push(user); await writeDatabase(database); setSession(user, response); presence.set(user.id, Date.now() + 30000);
             return json(response, 201, { user: publicUser(user) });
         }
         const user = database.users.find(item => item.email === email);
@@ -136,8 +138,6 @@ async function handleApi(request: IncomingMessage, response: ServerResponse, pat
         return user ? json(response, 200, { user: publicUser(user) }) : json(response, 401, { error: "Session absente." });
     }
     if (pathname === "/api/auth/logout") {
-        const token = cookies(request).pulse_session?.split(".")[0];
-        if (token) sessions.delete(token);
         return json(response, 200, { ok: true }, { "Set-Cookie": "pulse_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0" });
     }
 
@@ -155,7 +155,7 @@ async function handleApi(request: IncomingMessage, response: ServerResponse, pat
         if (!target || target.id === user.id) return json(response, 404, { error: "Utilisateur introuvable." });
         user.blockedUserIds = user.blockedUserIds.filter(id => id !== target.id);
         if (request.method === "POST") user.blockedUserIds.push(target.id);
-        writeDatabase(database);
+        await writeDatabase(database);
         return json(response, 200, { blocked: request.method === "POST", user: publicUser(target) });
     }
     if (pathname === "/api/presence" && request.method === "POST") return json(response, 200, { online: true, user: publicUser(user) });
@@ -165,17 +165,17 @@ async function handleApi(request: IncomingMessage, response: ServerResponse, pat
         if (!prompt || prompt.length > 4000) return json(response, 400, { error: "Question invalide." });
         return json(response, 200, { text: await askAi(prompt, input.language === "en" ? "en" : "fr") });
     }
-    if (pathname === "/api/conversations" && request.method === "GET") return json(response, 200, { conversations: database.conversations.filter(item => item.memberIds.includes(user.id)).map(item => publicConversation(item, user)) });
+    if (pathname === "/api/conversations" && request.method === "GET") return json(response, 200, { conversations: database.conversations.filter(item => item.memberIds.includes(user.id)).map(item => publicConversation(item, user, database)) });
     if (pathname === "/api/conversations" && request.method === "POST") {
         const input = await body(request);
         const target = findTarget(database, String(input.code || input.email || ""));
         if (!target || target.id === user.id) return json(response, 404, { error: "Code utilisateur introuvable." });
         if (blocked(database, user, target)) return json(response, 403, { error: "Cette personne est bloquée." });
         const existing = database.conversations.find(item => item.type === "direct" && item.memberIds.includes(user.id) && item.memberIds.includes(target.id));
-        if (existing) return json(response, 200, { conversation: publicConversation(existing, user) });
+        if (existing) return json(response, 200, { conversation: publicConversation(existing, user, database) });
         const conversation: Conversation = { id: makeId("conversation"), type: "direct", name: target.name, email: target.email, memberIds: [user.id, target.id], messages: [], createdAt: Date.now() };
-        database.conversations.unshift(conversation); writeDatabase(database);
-        return json(response, 201, { conversation: publicConversation(conversation, user) });
+        database.conversations.unshift(conversation); await writeDatabase(database);
+        return json(response, 201, { conversation: publicConversation(conversation, user, database) });
     }
     const messageMatch = pathname.match(/^\/api\/conversations\/([^/]+)\/messages$/);
     if (messageMatch) {
@@ -190,7 +190,7 @@ async function handleApi(request: IncomingMessage, response: ServerResponse, pat
             const text = String(input.text || "").trim();
             if (!text || text.length > 4000) return json(response, 400, { error: "Message invalide." });
             conversation.messages.push({ id: makeId("message"), authorId: user.id, author: user.name, text, createdAt: Date.now() });
-            writeDatabase(database);
+            await writeDatabase(database);
             return json(response, 201, { message: { ...conversation.messages.at(-1), outgoing: true } });
         }
     }
@@ -221,7 +221,7 @@ function serveStatic(request: IncomingMessage, response: ServerResponse): void {
     createReadStream(filePath).pipe(response);
 }
 
-createServer(async (request, response) => {
+export async function handler(request: IncomingMessage, response: ServerResponse): Promise<void> {
     try {
         const pathname = new URL(request.url || "/", `http://${request.headers.host || "localhost"}`).pathname;
         if (request.method === "OPTIONS") return json(response, 204, {});
@@ -233,4 +233,8 @@ createServer(async (request, response) => {
         console.error(error);
         return json(response, 500, { error: "Erreur interne du serveur." });
     }
-}).listen(port, () => console.log(`Pulse TypeScript disponible sur http://localhost:${port}`));
+}
+
+if (!process.env.VERCEL) {
+    createServer(handler).listen(port, () => console.log(`Pulse TypeScript disponible sur http://localhost:${port}`));
+}
