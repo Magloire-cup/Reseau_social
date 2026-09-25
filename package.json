@@ -4,10 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --env-file=.env server.mjs",
-    "start": "node --env-file=.env server.mjs"
+    "dev": "tsx watch backend/server.ts",
+    "start": "tsx backend/server.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "nodemailer": "^7.0.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/nodemailer": "^6.4.7",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
   }
 }

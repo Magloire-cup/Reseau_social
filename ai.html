@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pulse | IA</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="pages.css">
+    <link rel="stylesheet" href="ai.css">
+</head>
+<body>
+    <div class="app-background"></div>
+    <div class="page-shell">
+        <header class="page-header">
+            <a class="app-brand" href="index.html"><span class="brand-mark">✦</span><strong>PULSE</strong></a>
+            <div class="topbar-actions">
+                <label class="language-picker" aria-label="Choisir la langue"><span>文</span><select id="languageSelect" aria-label="Langue"><option value="fr">FR</option><option value="en">EN</option></select></label>
+                <a class="back-home" href="index.html">← Messages</a>
+            </div>
+        </header>
+        <main class="page-main ai-main">
+            <div class="page-intro"><span class="eyebrow">PULSE AI</span><h1 data-i18n="aiTitle">Ton assistant, dans ton espace.</h1><p data-i18n="aiHelp">Pose une question, prépare un message ou demande une reformulation.</p></div>
+            <section class="page-panel ai-panel">
+                <div id="aiMessages" class="ai-messages"><div class="ai-bubble">Bonjour. Je peux t'aider à rédiger, résumer ou organiser une idée.</div></div>
+                <form id="aiForm" class="ai-form"><textarea id="aiInput" rows="2" placeholder="Écrire à Pulse AI..." required></textarea><button class="primary-button" type="submit">➤</button></form>
+                <p id="aiStatus" class="form-message" aria-live="polite"></p>
+            </section>
+        </main>
+    </div>
+    <script src="ai.js"></script>
+</body>
+</html>

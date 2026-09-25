@@ -1,6 +1,6 @@
 # Pulse
 
-Pulse est une messagerie web inspirée de WhatsApp avec authentification serveur, sessions sécurisées, conversations persistées et formulaire de contact.
+Pulse est une messagerie web inspirée de WhatsApp avec backend TypeScript, authentification serveur, code utilisateur unique, sessions sécurisées, présence en ligne, blocage, IA et formulaire de contact.
 
 ## Démarrage
 
@@ -24,3 +24,12 @@ Le site sera disponible sur `http://localhost:3000`.
 Le formulaire de `contact.html` utilise SMTP. Pour Gmail, active la validation en deux étapes et crée un mot de passe d'application. Renseigne `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` et `CONTACT_TO=maglo9501@gmail.com` dans `.env`.
 
 Les secrets restent côté serveur et ne sont jamais envoyés au navigateur.
+
+## Fonctions backend
+
+- `PULSE-XXXXXXXX` est généré à l'inscription et permet de retrouver un utilisateur sans exposer son email.
+- Le mot de passe est vérifié à chaque connexion et stocké avec `scrypt`.
+- La présence est mise à jour par session et les conversations se rafraîchissent automatiquement.
+- Le blocage est disponible via l'API `/api/users/:code/block`.
+- `/api/ai` utilise Gemini si `GEMINI_API_KEY` existe, sinon une réponse locale est fournie.
+- Le sélecteur FR/EN est conservé dans le navigateur et traduit les textes de l'interface.

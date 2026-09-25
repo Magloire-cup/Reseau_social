@@ -1,0 +1,9 @@
+.ai-main { max-width: 900px; }
+.ai-panel { display: grid; gap: 16px; }
+.ai-messages { display: grid; gap: 12px; min-height: 360px; max-height: 520px; overflow: auto; padding: 20px; border-radius: 14px; background: var(--surface-soft); }
+.ai-bubble { width: fit-content; max-width: 80%; padding: 12px 15px; border-radius: 4px 15px 15px 15px; background: var(--surface); color: var(--text); box-shadow: 0 2px 6px rgba(15,45,35,.08); white-space: pre-wrap; }
+.user-ai-bubble { justify-self: end; border-radius: 15px 4px 15px 15px; background: #d9fdd3; }
+.ai-form { display: flex; align-items: end; gap: 10px; }
+.ai-form textarea { flex: 1; resize: vertical; min-height: 50px; padding: 13px; border: 1px solid var(--line); border-radius: 12px; outline: 0; background: var(--surface-soft); color: var(--text); }
+.ai-form button { min-width: 50px; }
+@media (max-width: 600px) { .ai-bubble { max-width: 92%; } }

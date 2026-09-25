@@ -1,6 +1,12 @@
 const STORAGE_KEY = "pulse-demo-state";
 const THEME_KEY = "pulse-theme";
+const LANG_KEY = "pulse-language";
 const SERVER_MODE = window.location.protocol !== "file:";
+
+const translations = {
+    fr: { yourSpace: "TON ESPACE", messages: "Messages", search: "Rechercher une conversation", all: "Tout", unread: "Non lus", group: "＋ Groupe", aiButton: "✦ IA", newChatTitle: "À qui veux-tu écrire ?", newChatHelp: "Saisis le code unique reçu à l'inscription.", codeLabel: "Code utilisateur", nameLabel: "Nom à afficher", openChat: "Ouvrir la conversation", online: "En ligne", offline: "Hors ligne", blocked: "Débloquer", block: "Bloquer", privateMessaging: "MESSAGERIE PRIVÉE", authTitle: "Les bonnes conversations,<br><span>au bon endroit.</span>", authHelp: "Un espace simple pour retrouver tes proches, créer des groupes et garder le fil.", login: "Se connecter", register: "Créer un compte", emailLabel: "Email", passwordLabel: "Mot de passe", displayNameLabel: "Nom affiché", loginButton: "Entrer dans Pulse →", registerButton: "Créer mon espace →" },
+    en: { yourSpace: "YOUR SPACE", messages: "Messages", search: "Search a conversation", all: "All", unread: "Unread", group: "＋ Group", aiButton: "✦ AI", newChatTitle: "Who do you want to message?", newChatHelp: "Enter the unique code received at sign up.", codeLabel: "User code", nameLabel: "Display name", openChat: "Open conversation", online: "Online", offline: "Offline", blocked: "Unblock", block: "Block", privateMessaging: "PRIVATE MESSAGING", authTitle: "The right conversations,<br><span>in the right place.</span>", authHelp: "A simple space to stay in touch, create groups, and keep the thread.", login: "Log in", register: "Create account", emailLabel: "Email", passwordLabel: "Password", displayNameLabel: "Display name", loginButton: "Enter Pulse →", registerButton: "Create my space →" }
+};
 
 const defaultState = {
     currentUser: null,
@@ -20,6 +26,26 @@ const conversationList = $("#conversationList");
 const emptyConversation = $("#emptyConversation");
 const activeConversation = $("#activeConversation");
 const workspace = $(".workspace");
+
+function applyLanguage(locale = localStorage.getItem(LANG_KEY) || "fr") {
+    const language = translations[locale] ? locale : "fr";
+    const values = translations[language];
+    document.documentElement.lang = language;
+    localStorage.setItem(LANG_KEY, language);
+    document.querySelectorAll("[data-i18n]").forEach(node => { const key = node.dataset.i18n; if (values[key]) node.innerHTML = values[key]; });
+    document.querySelectorAll("[data-i18n-label]").forEach(node => { const key = node.dataset.i18nLabel; if (values[key] && node.firstChild) node.firstChild.textContent = `${values[key]} `; });
+    document.querySelectorAll("[data-i18n-placeholder]").forEach(node => { const key = node.dataset.i18nPlaceholder; if (values[key]) node.placeholder = values[key]; });
+    document.querySelectorAll("#languageSelect, #authLanguageSelect").forEach(selector => selector.value = language);
+    const aiButton = $(".ai-nav-button");
+    if (aiButton) aiButton.textContent = values.aiButton;
+}
+
+function bindLanguageSelector() {
+    const selectors = document.querySelectorAll("#languageSelect, #authLanguageSelect");
+    if (!selectors.length) return;
+    selectors.forEach(selector => selector.addEventListener("change", event => applyLanguage(event.target.value)));
+    applyLanguage(localStorage.getItem(LANG_KEY) || "fr");
+}
 
 async function apiRequest(path, options = {}) {
     const response = await fetch(path, { credentials: "same-origin", ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } });
@@ -42,11 +68,21 @@ async function refreshActiveConversation() {
         const conversation = state.conversations.find(item => item.id === state.activeConversationId);
         if (!conversation) return;
         conversation.messages = result.messages || [];
+        conversation.contactOnline = Boolean(result.online);
+        conversation.blocked = Boolean(result.blocked);
+        const labels = translations[localStorage.getItem(LANG_KEY) || "fr"] || translations.fr;
+        $("#activeSubtitle").textContent = conversation.contactOnline ? labels.online : labels.offline;
+        $("#blockContactButton").title = conversation.blocked ? labels.blocked : labels.block;
+        $("#messageInput").disabled = conversation.blocked;
         renderMessages(conversation);
         renderConversations();
     } catch {
         // Keep the current messages visible during a temporary network interruption.
     }
+}
+
+async function sendPresence() {
+    if (SERVER_MODE && state.currentUser) await apiRequest("/api/presence", { method: "POST" }).catch(() => {});
 }
 
 function loadState() {
@@ -96,6 +132,7 @@ function showApp() {
     socialApp.classList.remove("hidden");
     $("#profileName").textContent = state.currentUser.name;
     $("#profileAvatar").textContent = initials(state.currentUser.name);
+    $("#profileCode").textContent = `Code: ${state.currentUser.code || "local"}`;
     renderConversations();
     if (state.activeConversationId) openConversation(state.activeConversationId);
 }
@@ -198,8 +235,11 @@ function openConversation(id) {
     activeConversation.classList.remove("hidden");
     workspace.classList.add("mobile-conversation");
     $("#activeTitle").textContent = conversation.name;
-    $("#activeSubtitle").textContent = conversation.type === "group" ? `${conversation.members.length} membre${conversation.members.length > 1 ? "s" : ""}` : conversation.email;
+    const labels = translations[localStorage.getItem(LANG_KEY) || "fr"] || translations.fr;
+    $("#activeSubtitle").textContent = conversation.type === "group" ? `${conversation.members.length} membre${conversation.members.length > 1 ? "s" : ""}` : (conversation.contactOnline ? labels.online : labels.offline);
     $("#activeAvatar").textContent = conversation.type === "group" ? "♧" : initials(conversation.name);
+    $("#blockContactButton").dataset.blocked = conversation.blocked ? "true" : "false";
+    $("#blockContactButton").title = conversation.blocked ? labels.blocked : labels.block;
     renderMessages(conversation);
     renderConversations();
     $("#messageInput").focus();
@@ -263,11 +303,11 @@ $("#newChatForm").addEventListener("submit", async event => {
     try {
         let conversation;
         if (SERVER_MODE) {
-            const result = await apiRequest("/api/conversations", { method: "POST", body: JSON.stringify({ email: data.get("email").trim().toLowerCase(), name: data.get("name").trim() }) });
+            const result = await apiRequest("/api/conversations", { method: "POST", body: JSON.stringify({ code: data.get("code").trim(), name: data.get("name").trim() }) });
             conversation = result.conversation;
             state.conversations.unshift(conversation);
         } else {
-            conversation = addConversation(data.get("email").trim().toLowerCase(), data.get("name").trim());
+            conversation = addConversation(data.get("code").trim(), data.get("name").trim());
         }
         closeDialog($("#newChatDialog"));
         event.currentTarget.reset();
@@ -319,6 +359,20 @@ $$(".filter-button[data-filter]").forEach(button => button.addEventListener("cli
 }));
 
 $("#profileButton").addEventListener("click", () => $("#profileMenu").classList.toggle("hidden"));
+$("#blockContactButton").addEventListener("click", async () => {
+    const conversation = state.conversations.find(item => item.id === state.activeConversationId);
+    if (!conversation || conversation.type !== "direct" || !SERVER_MODE) return;
+    const labels = translations[localStorage.getItem(LANG_KEY) || "fr"] || translations.fr;
+    const method = conversation.blocked ? "DELETE" : "POST";
+    try {
+        await apiRequest(`/api/users/${encodeURIComponent(conversation.email)}/block`, { method });
+        conversation.blocked = method === "POST";
+        $("#blockContactButton").title = conversation.blocked ? labels.blocked : labels.block;
+        $("#messageInput").disabled = conversation.blocked;
+    } catch (error) {
+        setMessage(authMessage, error.message);
+    }
+});
 $("#logoutButton").addEventListener("click", async () => {
     if (SERVER_MODE) await apiRequest("/api/auth/logout", { method: "POST" }).catch(() => {});
     state.currentUser = null;
@@ -343,6 +397,7 @@ $("#themeButton").addEventListener("click", () => {
 });
 
 applyTheme();
+bindLanguageSelector();
 
 async function restoreSession() {
     if (!SERVER_MODE) {
@@ -362,3 +417,4 @@ async function restoreSession() {
 
 restoreSession();
 window.setInterval(refreshActiveConversation, 5000);
+window.setInterval(sendPresence, 10000);
