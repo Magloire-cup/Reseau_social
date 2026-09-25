@@ -1,0 +1,15 @@
+{
+  "name": "Pulse Messenger",
+  "short_name": "Pulse",
+  "description": "Messagerie moderne avec Gemini AI",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#e9edef",
+  "theme_color": "#00a884",
+  "icons": [{
+    "src": "/favicon.svg",
+    "sizes": "any",
+    "type": "image/svg+xml",
+    "purpose": "any maskable"
+  }]
+}
