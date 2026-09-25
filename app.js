@@ -1,43 +1,5 @@
 const STORAGE_KEY = "pulse-demo-state";
 const THEME_KEY = "pulse-theme";
-const LANG_KEY = "pulse-language";
-
-const translations = {
-    fr: {
-        spaceEyebrow: "TON ESPACE",
-        messagesTitle: "Messages",
-        searchPlaceholder: "Rechercher une conversation",
-        allFilter: "Tout",
-        unreadFilter: "Non lus",
-        groupAction: "＋ Groupe",
-        pulseReady: "Pulse est prêt",
-        emptyConversationTitle: "Choisis une conversation",
-        emptyConversationText: "Ouvre un échange ou commence une nouvelle discussion avec une adresse email.",
-        newConversationButton: "Nouvelle conversation",
-        messagePlaceholder: "Écrire un message...",
-        profileLabel: "Profil",
-        logoutLabel: "Se déconnecter",
-        aiButton: "IA",
-        documentTitle: "Pulse | Conversations qui comptent"
-    },
-    en: {
-        spaceEyebrow: "YOUR SPACE",
-        messagesTitle: "Messages",
-        searchPlaceholder: "Search a conversation",
-        allFilter: "All",
-        unreadFilter: "Unread",
-        groupAction: "＋ Group",
-        pulseReady: "Pulse is ready",
-        emptyConversationTitle: "Choose a conversation",
-        emptyConversationText: "Open a chat or start a new conversation with an email address.",
-        newConversationButton: "New conversation",
-        messagePlaceholder: "Write a message...",
-        profileLabel: "Profile",
-        logoutLabel: "Log out",
-        aiButton: "AI",
-        documentTitle: "Pulse | Meaningful conversations"
-    }
-};
 
 const defaultState = {
     currentUser: null,
@@ -64,41 +26,6 @@ function loadState() {
     } catch {
         return { ...defaultState };
     }
-}
-
-function applyLanguage(locale = localStorage.getItem(LANG_KEY) || "fr") {
-    const lang = translations[locale] ? locale : "fr";
-    const values = translations[lang];
-    document.documentElement.lang = lang;
-    localStorage.setItem(LANG_KEY, lang);
-    document.title = values.documentTitle;
-
-    document.querySelectorAll("[data-i18n]").forEach(node => {
-        const key = node.dataset.i18n;
-        if (values[key]) node.textContent = values[key];
-    });
-    document.querySelectorAll("[data-i18n-placeholder]").forEach(node => {
-        const key = node.dataset.i18nPlaceholder;
-        if (values[key]) node.placeholder = values[key];
-    });
-
-    const profileLabel = document.getElementById("profileName");
-    if (profileLabel) profileLabel.textContent = state.currentUser ? state.currentUser.name : values.profileLabel;
-    const logoutButton = document.getElementById("logoutButton");
-    if (logoutButton) logoutButton.textContent = values.logoutLabel;
-    const aiButtonLabel = document.querySelector(".ai-nav-button span:last-child");
-    if (aiButtonLabel) aiButtonLabel.textContent = values.aiButton;
-    const languageSelect = document.getElementById("languageSelect");
-    const languageIndicator = document.querySelector(".language-label");
-    if (languageSelect) languageSelect.value = lang;
-    if (languageIndicator) languageIndicator.textContent = lang.toUpperCase();
-}
-
-function bindLanguageSelector() {
-    const languageSelect = document.getElementById("languageSelect");
-    if (!languageSelect) return;
-    languageSelect.addEventListener("change", event => applyLanguage(event.target.value));
-    applyLanguage(languageSelect.value || localStorage.getItem(LANG_KEY) || "fr");
 }
 
 function saveState() {
@@ -213,6 +140,11 @@ function renderConversations() {
         </button>`;
     }).join("");
 }
+
+conversationList.addEventListener("click", event => {
+    const conversationItem = event.target.closest("[data-conversation-id]");
+    if (conversationItem) openConversation(conversationItem.dataset.conversationId);
+});
 
 function openConversation(id) {
     const conversation = state.conversations.find(item => item.id === id);
@@ -346,5 +278,4 @@ $("#themeButton").addEventListener("click", () => {
 });
 
 applyTheme();
-bindLanguageSelector();
 if (state.currentUser) showApp();
