@@ -6,6 +6,7 @@
 	<meta name="description" content="Pulse, un espace de conversations privées et de groupes.">
 	<title>Pulse | Conversations qui comptent</title>
 	<link rel="stylesheet" href="styles.css">
+	<link rel="stylesheet" href="pages.css">
 </head>
 <body>
 	<div class="app-background"></div>
@@ -52,7 +53,7 @@
 			<div class="topbar-actions">
 				<button id="themeButton" class="icon-button" type="button" title="Changer de thème" aria-label="Changer de thème">☼</button>
 				<button id="profileButton" class="profile-chip" type="button"><span id="profileAvatar" class="avatar avatar-small">P</span><span id="profileName">Profil</span><span class="chevron">⌄</span></button>
-				<div id="profileMenu" class="profile-menu hidden"><button id="logoutButton" type="button">Se déconnecter</button></div>
+				<div id="profileMenu" class="profile-menu hidden"><a href="profil.html">Mon profil</a><a href="notifications.html">Notifications <span class="menu-badge">3</span></a><a href="parametres.html">Paramètres</a><button id="logoutButton" type="button">Se déconnecter</button></div>
 			</div>
 		</header>
 
@@ -63,6 +64,7 @@
 					<button id="newChatButton" class="round-button" type="button" title="Nouvelle conversation" aria-label="Nouvelle conversation">+</button>
 				</div>
 				<div class="search-box"><span>⌕</span><input id="chatSearch" type="search" placeholder="Rechercher une conversation" aria-label="Rechercher une conversation"></div>
+				<div class="status-rail"><button class="status-story own-story" type="button" title="Ajouter un statut"><span>+</span><small>Ton statut</small></button><button class="status-story" type="button"><span>AM</span><small>Amélie</small></button><button class="status-story" type="button"><span>JD</span><small>Jérôme</small></button><button class="status-story" type="button"><span>SK</span><small>Sarah</small></button></div>
 				<div class="sidebar-actions"><button class="filter-button active" type="button" data-filter="all">Tout</button><button class="filter-button" type="button" data-filter="unread">Non lus</button><button id="newGroupButton" class="filter-button group-action" type="button">＋ Groupe</button></div>
 				<div id="conversationList" class="conversation-list"></div>
 				<div class="sidebar-footer"><span class="status-dot"></span><span>Pulse est prêt</span></div>
@@ -71,7 +73,7 @@
 			<section id="conversationPanel" class="conversation-panel">
 				<div id="emptyConversation" class="empty-conversation"><div class="empty-orbit"><span>✦</span></div><h2>Choisis une conversation</h2><p>Ouvre un échange ou commence une nouvelle discussion avec une adresse email.</p><button id="emptyNewChatButton" class="secondary-button" type="button">Nouvelle conversation</button></div>
 				<div id="activeConversation" class="active-conversation hidden">
-					<header class="conversation-header"><button id="backToSidebar" class="mobile-back icon-button" type="button" aria-label="Retour aux conversations">←</button><div id="activeAvatar" class="avatar">P</div><div class="conversation-title"><h2 id="activeTitle">Conversation</h2><p id="activeSubtitle">En ligne</p></div><div class="conversation-tools"><button class="icon-button" type="button" title="Rechercher dans la conversation">⌕</button><button class="icon-button" type="button" title="Plus d'options">•••</button></div></header>
+					<header class="conversation-header"><button id="backToSidebar" class="mobile-back icon-button" type="button" aria-label="Retour aux conversations">←</button><div id="activeAvatar" class="avatar">P</div><div class="conversation-title"><h2 id="activeTitle">Conversation</h2><p id="activeSubtitle">En ligne</p></div><div class="conversation-tools"><button class="icon-button" type="button" title="Appel audio">⌕</button><button class="icon-button" type="button" title="Appel vidéo">▣</button><button class="icon-button" type="button" title="Plus d'options">•••</button></div></header>
 					<div id="messageList" class="message-list"></div>
 					<form id="messageForm" class="message-composer"><button class="icon-button composer-icon" type="button" title="Ajouter une pièce jointe">＋</button><input id="messageInput" type="text" placeholder="Écrire un message..." autocomplete="off" required><button class="send-button" type="submit" aria-label="Envoyer le message">➤</button></form>
 				</div>
@@ -84,5 +86,6 @@
 	<dialog id="newGroupDialog" class="modal"><form id="newGroupForm" class="modal-card"><button class="modal-close" type="button" data-close-modal="newGroupDialog" aria-label="Fermer">×</button><span class="eyebrow">ESPACE COLLECTIF</span><h2>Créer un groupe</h2><p>Réunis plusieurs personnes autour d'un même projet ou sujet.</p><label>Nom du groupe<input name="name" type="text" placeholder="Ex. Équipe projet" required></label><label>Emails des membres <span class="optional">(séparés par des virgules)</span><textarea name="members" rows="3" placeholder="ana@exemple.com, sam@exemple.com" required></textarea></label><button class="primary-button wide" type="submit">Créer le groupe</button><p id="groupFormMessage" class="form-message" aria-live="polite"></p></form></dialog>
 
 	<script src="app.js"></script>
+	<script src="social.js"></script>
 </body>
 </html>
