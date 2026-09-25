@@ -54,7 +54,7 @@
 			<div class="topbar-actions">
 				<button id="themeButton" class="icon-button" type="button" title="Changer de thème" aria-label="Changer de thème">☼</button>
 				<button id="profileButton" class="profile-chip" type="button"><span id="profileAvatar" class="avatar avatar-small">P</span><span id="profileName">Profil</span><span class="chevron">⌄</span></button>
-				<div id="profileMenu" class="profile-menu hidden"><a href="profil.html">Mon profil</a><a href="notifications.html">Notifications <span class="menu-badge">3</span></a><a href="parametres.html">Paramètres</a><button id="logoutButton" type="button">Se déconnecter</button></div>
+				<div id="profileMenu" class="profile-menu hidden"><a href="profil.html">Mon profil</a><a href="ai.html">Assistant Gemini <span class="menu-badge ai-badge">✦</span></a><a href="notifications.html">Notifications <span class="menu-badge">3</span></a><a href="parametres.html">Paramètres</a><button id="logoutButton" type="button">Se déconnecter</button></div>
 			</div>
 		</header>
 
@@ -65,8 +65,8 @@
 					<button id="newChatButton" class="round-button" type="button" title="Nouvelle conversation" aria-label="Nouvelle conversation">+</button>
 				</div>
 				<div class="search-box"><span>⌕</span><input id="chatSearch" type="search" placeholder="Rechercher une conversation" aria-label="Rechercher une conversation"></div>
-				<div class="status-rail"><button class="status-story own-story" type="button" title="Ajouter un statut"><span>+</span><small>Ton statut</small></button><button class="status-story" type="button"><span>AM</span><small>Amélie</small></button><button class="status-story" type="button"><span>JD</span><small>Jérôme</small></button><button class="status-story" type="button"><span>SK</span><small>Sarah</small></button></div>
 				<div class="sidebar-actions"><button class="filter-button active" type="button" data-filter="all">Tout</button><button class="filter-button" type="button" data-filter="unread">Non lus</button><button id="newGroupButton" class="filter-button group-action" type="button">＋ Groupe</button></div>
+				<a class="ai-shortcut" href="ai.html"><span class="ai-spark">✦</span><span><strong>Parler à Gemini</strong><small>Rédiger, organiser, comprendre</small></span><span>→</span></a>
 				<div id="conversationList" class="conversation-list"></div>
 				<div class="sidebar-footer"><span class="status-dot"></span><span>Pulse est prêt</span></div>
 			</aside>

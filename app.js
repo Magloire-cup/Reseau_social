@@ -4,7 +4,8 @@ const THEME_KEY = "pulse-theme";
 const defaultState = {
     currentUser: null,
     conversations: [],
-    activeConversationId: null
+    activeConversationId: null,
+    statuses: []
 };
 
 const state = loadState();
@@ -75,24 +76,6 @@ function showAuth() {
     socialApp.classList.add("hidden");
 }
 
-function createWelcomeConversation() {
-    return {
-        id: makeId("chat"),
-        type: "direct",
-        name: "Pulse",
-        email: "pulse@local.demo",
-        members: [],
-        unread: false,
-        messages: [{
-            id: makeId("message"),
-            author: "Pulse",
-            text: "Bienvenue dans ton espace. Ajoute une personne avec son email ou crée un groupe pour commencer.",
-            outgoing: false,
-            createdAt: Date.now()
-        }]
-    };
-}
-
 function authenticate(form, register = false) {
     const data = new FormData(form);
     const email = data.get("email").trim().toLowerCase();
@@ -101,15 +84,21 @@ function authenticate(form, register = false) {
     if (register) {
         const name = data.get("name").trim();
         if (!name) return setMessage(authMessage, "Choisis un nom affiché.");
-        state.currentUser = { name, email, password };
-        state.conversations = [createWelcomeConversation()];
+        state.currentUser = { name, email, password, createdAt: Date.now(), lastLogin: Date.now(), loginCount: 1 };
+        state.conversations = [];
         state.activeConversationId = null;
+        recordLogin(state.currentUser, true);
     } else {
         const savedUser = JSON.parse(localStorage.getItem("pulse-user") || "null");
         if (!savedUser || savedUser.email !== email || savedUser.password !== password) {
+            recordLogin({ email }, false);
             return setMessage(authMessage, "Email ou mot de passe incorrect. Crée d'abord un compte de démonstration.");
         }
+        savedUser.lastLogin = Date.now();
+        savedUser.loginCount = (savedUser.loginCount || 0) + 1;
         state.currentUser = savedUser;
+        localStorage.setItem("pulse-user", JSON.stringify(savedUser));
+        recordLogin(savedUser, true);
     }
 
     if (register) localStorage.setItem("pulse-user", JSON.stringify(state.currentUser));
@@ -118,10 +107,20 @@ function authenticate(form, register = false) {
     showApp();
 }
 
+function recordLogin(user, success) {
+    const history = JSON.parse(localStorage.getItem("pulse-login-history") || "[]");
+    history.unshift({ email: user.email, name: user.name || "Compte inconnu", success, loggedAt: Date.now() });
+    localStorage.setItem("pulse-login-history", JSON.stringify(history.slice(0, 15)));
+}
+
+function getSavedConversations() {
+    return state.conversations.filter(conversation => conversation.type === "group" || conversation.email !== "pulse@local.demo");
+}
+
 function renderConversations() {
     const query = $("#chatSearch").value.trim().toLowerCase();
     const onlyUnread = $(".filter-button.active")?.dataset.filter === "unread";
-    const filtered = state.conversations.filter(conversation => {
+    const filtered = getSavedConversations().filter(conversation => {
         const matchesText = `${conversation.name} ${conversation.email || ""}`.toLowerCase().includes(query);
         return matchesText && (!onlyUnread || conversation.unread);
     });
@@ -174,7 +173,7 @@ function renderMessages(conversation) {
 function addConversation(email, name = "") {
     const existing = state.conversations.find(item => item.email === email && item.type === "direct");
     if (existing) return existing;
-    const conversation = { id: makeId("chat"), type: "direct", name: name || email.split("@")[0], email, members: [], unread: false, messages: [] };
+    const conversation = { id: makeId("chat"), type: "direct", name: name || email.split("@")[0], email, members: [], unread: false, status: "Disponible", messages: [] };
     state.conversations.unshift(conversation);
     saveState();
     return conversation;
