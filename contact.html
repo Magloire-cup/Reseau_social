@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Contacter l'équipe Pulse.">
+    <title>Pulse | Contact</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="pages.css">
+</head>
+<body>
+    <div class="app-background"></div>
+    <div class="page-shell">
+        <header class="page-header">
+            <a class="app-brand" href="index.html"><span class="brand-mark">✦</span><strong>PULSE</strong></a>
+            <a class="back-home" href="index.html">← Retour aux messages</a>
+        </header>
+        <main class="page-main contact-main">
+            <div class="page-intro">
+                <span class="eyebrow">NOUS ÉCRIRE</span>
+                <h1>Une question ? On garde le fil.</h1>
+                <p>Envoie ton message. Il sera transmis directement à l'équipe Pulse.</p>
+            </div>
+            <section class="page-panel contact-panel">
+                <form id="contactForm" class="contact-form">
+                    <label>Nom<input name="name" type="text" autocomplete="name" maxlength="100" required></label>
+                    <label>Email<input name="email" type="email" autocomplete="email" maxlength="160" required></label>
+                    <label>Message<textarea name="message" rows="7" maxlength="5000" required></textarea></label>
+                    <label class="form-trap" aria-hidden="true">Site<input name="website" type="text" tabindex="-1" autocomplete="off"></label>
+                    <button class="primary-button" type="submit">Envoyer le message <span>→</span></button>
+                    <p id="contactStatus" class="form-message" aria-live="polite"></p>
+                </form>
+            </section>
+        </main>
+    </div>
+    <script src="contact.js"></script>
+</body>
+</html>

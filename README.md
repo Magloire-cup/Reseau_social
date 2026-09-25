@@ -1,29 +1,26 @@
 # Pulse
 
-Pulse est une interface de messagerie statique avec conversations locales, groupes et assistant Gemini.
+Pulse est une messagerie web inspirée de WhatsApp avec authentification serveur, sessions sécurisées, conversations persistées et formulaire de contact.
 
-## Lancer Gemini
+## Démarrage
 
-Node.js 20.6 ou plus récent est nécessaire.
+Node.js 20 ou plus récent est nécessaire.
 
 ```powershell
 npm install
 Copy-Item .env.example .env
 ```
 
-Ouvre `.env`, renseigne `GEMINI_API_KEY`, puis lance :
+Renseigne ensuite `.env`, puis lance :
 
 ```powershell
-npm run dev
+npm start
 ```
 
 Le site sera disponible sur `http://localhost:3000`.
 
-La clé Gemini est lue uniquement par `gemini-server.mjs`. Elle ne doit jamais être écrite dans un fichier HTML ou JavaScript envoyé au navigateur.
+## Email de contact
 
-## Fonctionnement
+Le formulaire de `contact.html` utilise SMTP. Pour Gmail, active la validation en deux étapes et crée un mot de passe d'application. Renseigne `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` et `CONTACT_TO=maglo9501@gmail.com` dans `.env`.
 
-- Chaque compte local possède une seule discussion Gemini.
-- « Supprimer et recommencer » efface l'ancienne discussion de cet utilisateur.
-- Les conversations Pulse restent locales dans le navigateur.
-- Pour une vraie application multi-utilisateur, il faudra ajouter une base de données, une authentification serveur et des sessions sécurisées.
+Les secrets restent côté serveur et ne sont jamais envoyés au navigateur.

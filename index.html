@@ -31,20 +31,20 @@
 
 			<form id="loginForm" class="auth-form" data-auth-form="login">
 				<label>Email<input name="email" type="email" placeholder="nom@exemple.com" autocomplete="email" required></label>
-				<label>Mot de passe<input name="password" type="password" placeholder="Ton mot de passe" autocomplete="current-password" minlength="4" required></label>
+				<label>Mot de passe<input name="password" type="password" placeholder="8 caractères minimum" autocomplete="current-password" minlength="8" required></label>
 				<button class="primary-button wide" type="submit">Entrer dans Pulse <span>→</span></button>
 			</form>
 
 			<form id="registerForm" class="auth-form hidden" data-auth-form="register">
 				<label>Nom affiché<input name="name" type="text" placeholder="Ton prénom ou pseudo" autocomplete="name" required></label>
 				<label>Email<input name="email" type="email" placeholder="nom@exemple.com" autocomplete="email" required></label>
-				<label>Mot de passe<input name="password" type="password" placeholder="4 caractères minimum" autocomplete="new-password" minlength="4" required></label>
+				<label>Mot de passe<input name="password" type="password" placeholder="8 caractères minimum" autocomplete="new-password" minlength="8" required></label>
 				<button class="primary-button wide" type="submit">Créer mon espace <span>→</span></button>
 			</form>
 
 			<p id="authMessage" class="form-message" aria-live="polite"></p>
 			<p class="demo-note">Mode démonstration : les données sont enregistrées uniquement dans ce navigateur.</p>
-			<a class="auth-help-link" href="aide.html">Découvrir comment fonctionne Pulse →</a>
+			<a class="auth-help-link" href="contact.html">Nous contacter →</a>
 		</div>
 	</section>
 
@@ -54,7 +54,7 @@
 			<div class="topbar-actions">
 				<button id="themeButton" class="icon-button" type="button" title="Changer de thème" aria-label="Changer de thème">☼</button>
 				<button id="profileButton" class="profile-chip" type="button"><span id="profileAvatar" class="avatar avatar-small">P</span><span id="profileName">Profil</span><span class="chevron">⌄</span></button>
-				<div id="profileMenu" class="profile-menu hidden"><a href="profil.html">Mon profil</a><a href="notifications.html">Notifications <span class="menu-badge">3</span></a><a href="parametres.html">Paramètres</a><button id="logoutButton" type="button">Se déconnecter</button></div>
+				<div id="profileMenu" class="profile-menu hidden"><a href="profil.html">Mon profil</a><a href="notifications.html">Notifications <span class="menu-badge">3</span></a><a href="parametres.html">Paramètres</a><a href="contact.html">Nous contacter</a><button id="logoutButton" type="button">Se déconnecter</button></div>
 			</div>
 		</header>
 

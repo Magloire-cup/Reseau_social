@@ -1,5 +1,6 @@
 const STORAGE_KEY = "pulse-demo-state";
 const THEME_KEY = "pulse-theme";
+const SERVER_MODE = window.location.protocol !== "file:";
 
 const defaultState = {
     currentUser: null,
@@ -19,6 +20,34 @@ const conversationList = $("#conversationList");
 const emptyConversation = $("#emptyConversation");
 const activeConversation = $("#activeConversation");
 const workspace = $(".workspace");
+
+async function apiRequest(path, options = {}) {
+    const response = await fetch(path, { credentials: "same-origin", ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || "Le serveur est indisponible.");
+    return body;
+}
+
+async function loadServerConversations() {
+    const result = await apiRequest("/api/conversations");
+    state.conversations = result.conversations || [];
+    state.activeConversationId = state.activeConversationId && state.conversations.some(item => item.id === state.activeConversationId) ? state.activeConversationId : state.conversations[0]?.id || null;
+    saveState();
+}
+
+async function refreshActiveConversation() {
+    if (!SERVER_MODE || !state.activeConversationId) return;
+    try {
+        const result = await apiRequest(`/api/conversations/${encodeURIComponent(state.activeConversationId)}/messages`);
+        const conversation = state.conversations.find(item => item.id === state.activeConversationId);
+        if (!conversation) return;
+        conversation.messages = result.messages || [];
+        renderMessages(conversation);
+        renderConversations();
+    } catch {
+        // Keep the current messages visible during a temporary network interruption.
+    }
+}
 
 function loadState() {
     try {
@@ -76,10 +105,23 @@ function showAuth() {
     socialApp.classList.add("hidden");
 }
 
-function authenticate(form, register = false) {
+async function authenticate(form, register = false) {
     const data = new FormData(form);
     const email = data.get("email").trim().toLowerCase();
     const password = data.get("password");
+
+    if (SERVER_MODE) {
+        try {
+            const result = await apiRequest(register ? "/api/auth/register" : "/api/auth/login", { method: "POST", body: JSON.stringify({ name: data.get("name")?.trim(), email, password }) });
+            state.currentUser = result.user;
+            await loadServerConversations();
+            setMessage(authMessage, "", "success");
+            showApp();
+        } catch (error) {
+            setMessage(authMessage, error.message);
+        }
+        return;
+    }
 
     if (register) {
         const name = data.get("name").trim();
@@ -215,13 +257,24 @@ $("#newChatButton").addEventListener("click", () => openDialog("newChatDialog"))
 $("#emptyNewChatButton").addEventListener("click", () => openDialog("newChatDialog"));
 $("#newGroupButton").addEventListener("click", () => openDialog("newGroupDialog"));
 
-$("#newChatForm").addEventListener("submit", event => {
+$("#newChatForm").addEventListener("submit", async event => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const conversation = addConversation(data.get("email").trim().toLowerCase(), data.get("name").trim());
-    closeDialog($("#newChatDialog"));
-    event.currentTarget.reset();
-    openConversation(conversation.id);
+    try {
+        let conversation;
+        if (SERVER_MODE) {
+            const result = await apiRequest("/api/conversations", { method: "POST", body: JSON.stringify({ email: data.get("email").trim().toLowerCase(), name: data.get("name").trim() }) });
+            conversation = result.conversation;
+            state.conversations.unshift(conversation);
+        } else {
+            conversation = addConversation(data.get("email").trim().toLowerCase(), data.get("name").trim());
+        }
+        closeDialog($("#newChatDialog"));
+        event.currentTarget.reset();
+        openConversation(conversation.id);
+    } catch (error) {
+        setMessage($("#chatFormMessage"), error.message);
+    }
 });
 
 $("#newGroupForm").addEventListener("submit", event => {
@@ -235,17 +288,28 @@ $("#newGroupForm").addEventListener("submit", event => {
     openConversation(conversation.id);
 });
 
-$("#messageForm").addEventListener("submit", event => {
+$("#messageForm").addEventListener("submit", async event => {
     event.preventDefault();
     const input = $("#messageInput");
     const text = input.value.trim();
     const conversation = state.conversations.find(item => item.id === state.activeConversationId);
     if (!text || !conversation) return;
-    conversation.messages.push({ id: makeId("message"), author: state.currentUser.name, text, outgoing: true, createdAt: Date.now() });
-    input.value = "";
-    saveState();
-    renderMessages(conversation);
-    renderConversations();
+    try {
+        let message;
+        if (SERVER_MODE) {
+            const result = await apiRequest(`/api/conversations/${encodeURIComponent(conversation.id)}/messages`, { method: "POST", body: JSON.stringify({ text }) });
+            message = result.message;
+        } else {
+            message = { id: makeId("message"), author: state.currentUser.name, text, outgoing: true, createdAt: Date.now() };
+        }
+        conversation.messages.push(message);
+        input.value = "";
+        saveState();
+        renderMessages(conversation);
+        renderConversations();
+    } catch (error) {
+        setMessage(authMessage, error.message);
+    }
 });
 
 $("#chatSearch").addEventListener("input", renderConversations);
@@ -255,7 +319,8 @@ $$(".filter-button[data-filter]").forEach(button => button.addEventListener("cli
 }));
 
 $("#profileButton").addEventListener("click", () => $("#profileMenu").classList.toggle("hidden"));
-$("#logoutButton").addEventListener("click", () => {
+$("#logoutButton").addEventListener("click", async () => {
+    if (SERVER_MODE) await apiRequest("/api/auth/logout", { method: "POST" }).catch(() => {});
     state.currentUser = null;
     state.activeConversationId = null;
     saveState();
@@ -278,4 +343,22 @@ $("#themeButton").addEventListener("click", () => {
 });
 
 applyTheme();
-if (state.currentUser) showApp();
+
+async function restoreSession() {
+    if (!SERVER_MODE) {
+        if (state.currentUser) showApp();
+        return;
+    }
+    try {
+        const result = await apiRequest("/api/auth/me");
+        state.currentUser = result.user;
+        await loadServerConversations();
+        showApp();
+    } catch {
+        state.currentUser = null;
+        showAuth();
+    }
+}
+
+restoreSession();
+window.setInterval(refreshActiveConversation, 5000);
