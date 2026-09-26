@@ -34,16 +34,17 @@ export async function POST(request: Request) {
 
         let content = fallback(last.content, body.language === "en" ? "en" : "fr");
         if (process.env.GEMINI_API_KEY) {
-            try {
-                const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-                const result = await ai.models.generateContent({
-                    model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
-                    contents: messages.map(message => ({ role: message.role, parts: [{ text: message.content }] })),
-                    config: { systemInstruction: body.language === "en" ? "You are Gemini AI inside Pulse. Be concise and helpful in English." : "Tu es Gemini AI dans Pulse. Réponds en français, avec clarté et concision." }
-                });
-                content = result.text || content;
-            } catch (error) {
-                console.error("Gemini indisponible, fallback local utilisé :", error);
+            const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+            const contents = messages.map(message => ({ role: message.role, parts: [{ text: message.content }] }));
+            const config = { systemInstruction: body.language === "en" ? "You are Gemini AI inside Pulse. Be concise and helpful in English." : "Tu es Gemini AI dans Pulse. Réponds en français, avec clarté et concision." };
+            const models = [...new Set([process.env.GEMINI_MODEL || "gemini-3.8-flash", "gemini-3.7-flash", "gemini-flash-latest"])];
+            for (const model of models) {
+                try {
+                    const result = await ai.models.generateContent({ model, contents, config: { ...config, abortSignal: AbortSignal.timeout(8000) } });
+                    if (result.text) { content = result.text; break; }
+                } catch (error) {
+                    console.error(`Gemini (${model}) indisponible :`, error);
+                }
             }
         }
         const message = { id: crypto.randomUUID(), role: "assistant" as const, content, createdAt: new Date().toISOString() };
