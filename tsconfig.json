@@ -33,6 +33,7 @@
     "app/**/*.tsx",
     "components/**/*.tsx",
     "lib/**/*.ts",
+    "utils/**/*.ts",
     "next.config.ts"
   ],
   "exclude": [
