@@ -17,7 +17,21 @@ button { cursor: pointer; }
 .search { margin: 16px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
 .search input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--text); }
 .conversation-list { flex: 1; overflow: auto; padding: 0 8px; }
-.conversation { display: flex; align-items: center; gap: 11px; width: 100%; padding: 12px 10px; border: 0; border-radius: 10px; background: transparent; text-align: left; color: var(--text); }
+.conversation { position: relative; display: flex; align-items: center; gap: 11px; width: 100%; padding: 12px 10px; border: 0; border-radius: 10px; background: transparent; text-align: left; color: var(--text); }
+.online-dot { position: absolute; left: 40px; bottom: 11px; width: 10px; height: 10px; border-radius: 50%; background: var(--green); border: 2px solid var(--panel); }
+.modal-overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(10, 20, 25, .5); }
+.modal { display: grid; gap: 12px; width: min(420px, 100%); padding: 22px; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow); }
+.modal h3 { margin: 0; }
+.modal-input { padding: 11px 13px; border: 1px solid var(--line); border-radius: 10px; outline: 0; background: var(--panel); color: var(--text); }
+.user-results { display: grid; gap: 6px; max-height: 260px; overflow: auto; }
+.user-result { display: flex; align-items: center; gap: 10px; padding: 8px; border: 0; border-radius: 10px; background: transparent; color: var(--text); text-align: left; }
+.user-result:hover { background: var(--hover); }
+.user-result .avatar { width: 36px; height: 36px; }
+.user-result-copy { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; }
+.user-result-copy small { color: var(--muted); }
+.online-label { color: var(--green); font-style: normal; font-size: .75rem; }
+.modal-empty { margin: 4px 0; color: var(--muted); font-size: .85rem; }
+.modal-close { justify-self: end; border: 0; background: transparent; color: var(--muted); font-weight: 700; }
 .conversation:hover, .conversation.active { background: var(--hover); }
 .avatar { display: grid; place-items: center; flex: 0 0 auto; width: 43px; height: 43px; border-radius: 50%; background: #dcefeb; color: #087b65; font-weight: 800; object-fit: cover; }
 .conversation-copy { min-width: 0; flex: 1; }

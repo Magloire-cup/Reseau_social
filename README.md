@@ -9,30 +9,29 @@ npm install
 Copy-Item .env.example .env.local
 npm run dev
 ```
-
 Ouvre `http://localhost:3000`.
 
 ## Variables d'environnement
 
 ```env
 GEMINI_API_KEY=
-DATABASE_URL=
+GEMINI_MODEL=gemini-3.8-flash
 NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 ```
 
-Ne mets jamais `GEMINI_API_KEY` ou `SUPABASE_SERVICE_ROLE_KEY` dans un composant client, `public/` ou GitHub.
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` est aussi accepté (ancien format). Ne mets jamais `GEMINI_API_KEY` dans un composant client, `public/` ou GitHub.
 
 ## Supabase
 
 1. Crée un projet Supabase.
-2. Exécute `supabase/schema.sql` dans l'éditeur SQL.
+2. Applique les migrations : `npx supabase link --project-ref <ref>` puis `npx supabase db push` (ou exécute le SQL de `supabase/migrations/` dans l'éditeur SQL).
 3. Active Email/Password dans Authentication.
-4. Copie l'URL et la clé anon dans `.env.local`.
-5. Active Realtime sur `messages` et `users` pour les notifications et la présence.
+4. Copie l'URL et la clé publique dans `.env.local`.
 
-Le schéma contient `users`, `conversations`, `conversation_members`, `messages` et `attachments`, avec des politiques RLS pour isoler les conversations.
+Le schéma contient `users`, `conversations`, `conversation_members`, `messages` et `attachments`, avec des politiques RLS pour isoler les conversations, un trigger qui crée le profil à l'inscription, et Realtime activé sur `messages`, `users` et `conversation_members`.
+
+Pour tester à plusieurs utilisateurs sans boîte mail, activez la confirmation automatique (Dashboard Supabase → Authentication → Sign In / Up → « Confirm email » désactivé), sinon chaque inscription doit confirmer son email et Supabase limite le nombre d'emails envoyés.
 
 ## Gemini
 

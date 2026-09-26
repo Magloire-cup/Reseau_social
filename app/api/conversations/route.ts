@@ -18,9 +18,15 @@ export async function POST(request: Request) {
     if (auth.error || !auth.data.user) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
     const input = await request.json() as { userId?: string; name?: string };
     if (!input.userId || input.userId === auth.data.user.id) return NextResponse.json({ error: "Utilisateur invalide." }, { status: 400 });
-    const created = await supabase.from("conversations").insert({ type: "direct", name: input.name || "Conversation" }).select().single();
+    // Id généré côté serveur : INSERT ... RETURNING échouerait, la politique SELECT
+    // exige d'être membre alors que l'adhésion n'est créée qu'après.
+    const id = crypto.randomUUID();
+    const created = await supabase.from("conversations").insert({ id, type: "direct", name: input.name || "Conversation" });
     if (created.error) return NextResponse.json({ error: created.error.message }, { status: 500 });
-    const members = await supabase.from("conversation_members").insert([{ conversation_id: created.data.id, user_id: auth.data.user.id }, { conversation_id: created.data.id, user_id: input.userId }]);
-    if (members.error) return NextResponse.json({ error: members.error.message }, { status: 500 });
-    return NextResponse.json({ conversation: created.data }, { status: 201 });
+    // Insertions séquentielles : la seconde passe la RLS grâce à l'adhésion créée par la première.
+    const first = await supabase.from("conversation_members").insert({ conversation_id: id, user_id: auth.data.user.id });
+    if (first.error) return NextResponse.json({ error: first.error.message }, { status: 500 });
+    const second = await supabase.from("conversation_members").insert({ conversation_id: id, user_id: input.userId });
+    if (second.error) return NextResponse.json({ error: second.error.message }, { status: 500 });
+    return NextResponse.json({ conversation: { id, type: "direct", name: input.name || "Conversation", created_at: new Date().toISOString() } }, { status: 201 });
 }

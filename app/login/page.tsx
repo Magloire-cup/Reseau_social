@@ -1,5 +1,5 @@
-import HomePage from "../page";
+import PulseApp from "../../components/PulseApp";
 
 export default function LoginPage() {
-    return <HomePage initialMode="login" />;
+    return <PulseApp initialMode="login" />;
 }

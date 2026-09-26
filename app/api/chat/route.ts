@@ -34,13 +34,17 @@ export async function POST(request: Request) {
 
         let content = fallback(last.content, body.language === "en" ? "en" : "fr");
         if (process.env.GEMINI_API_KEY) {
-            const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-            const result = await ai.models.generateContent({
-                model: "gemini-2.5-flash",
-                contents: messages.map(message => ({ role: message.role, parts: [{ text: message.content }] })),
-                config: { systemInstruction: body.language === "en" ? "You are Gemini AI inside Pulse. Be concise and helpful in English." : "Tu es Gemini AI dans Pulse. Réponds en français, avec clarté et concision." }
-            });
-            content = result.text || content;
+            try {
+                const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+                const result = await ai.models.generateContent({
+                    model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
+                    contents: messages.map(message => ({ role: message.role, parts: [{ text: message.content }] })),
+                    config: { systemInstruction: body.language === "en" ? "You are Gemini AI inside Pulse. Be concise and helpful in English." : "Tu es Gemini AI dans Pulse. Réponds en français, avec clarté et concision." }
+                });
+                content = result.text || content;
+            } catch (error) {
+                console.error("Gemini indisponible, fallback local utilisé :", error);
+            }
         }
         const message = { id: crypto.randomUUID(), role: "assistant" as const, content, createdAt: new Date().toISOString() };
         if (supabase && currentUserId) await supabase.from("messages").insert({ id: message.id, conversation_id: body.conversationId, sender_id: null, content, type: "ai", status: "sent" });
