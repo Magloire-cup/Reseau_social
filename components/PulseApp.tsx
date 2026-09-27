@@ -12,19 +12,19 @@ import { ProfileModal } from "./profile/ProfileModal";
 import { ContactProfileModal, type ContactProfile } from "./profile/ContactProfileModal";
 
 type Language = "fr" | "en";
-type ChatMessage = GeminiMessage & { id: string; createdAt: string; status?: "sent" | "delivered" | "read"; type?: string; audioUrl?: string | null; audioPath?: string | null; durationSeconds?: number | null };
+type ChatMessage = GeminiMessage & { id: string; createdAt: string; status?: "sent" | "delivered" | "read"; type?: string; audioUrl?: string | null; audioPath?: string | null; durationSeconds?: number | null; senderId?: string | null };
 type Profile = { id: string; name: string; username: string | null; avatar: string | null; online: boolean; status?: string | null; last_seen?: string | null };
 type DbAttachment = { url: string; mime_type: string; duration_seconds: number | null };
 type DbMessageRow = { id: string; conversation_id: string; sender_id: string | null; content: string; type: string; status: "sent" | "delivered" | "read"; created_at: string; attachments?: DbAttachment[] | null };
 type ConvShape = {
     id: string; type: "ai" | "direct" | "group"; name: string; created_at: string;
-    messages: { content: string; created_at: string; type: string }[] | null;
+    messages: { content: string; created_at: string; type: string; sender_id: string | null }[] | null;
     conversation_members: { users: Profile | null }[] | null;
 };
 
 const copy = {
-    fr: { brand: "PULSE", private: "MESSAGERIE PRIVÉE", title: "Les conversations qui comptent.", subtitle: "Un espace vivant pour parler, créer et garder le fil.", login: "Se connecter", register: "Créer un compte", name: "Nom affiché", email: "Email", password: "Mot de passe", enter: "Entrer dans Pulse", create: "Créer mon espace", search: "Rechercher une conversation", messages: "Messages", newChat: "Nouvelle conversation", assistant: "Assistant IA", online: "En ligne", offline: "Hors ligne", write: "Écrire un message...", aiGreeting: "Bonjour. Je peux t'aider à rédiger, résumer ou organiser une idée.", supabaseMissing: "Supabase n'est pas configuré. Ajoute les variables dans .env.local puis redémarre Next.js.", searchUser: "Rechercher un utilisateur (nom ou @pseudo)", noUserFound: "Aucun utilisateur trouvé.", close: "Fermer", sendFailed: "Envoi impossible. Réessaie.", typing: "Gemini écrit...", block: "Bloquer le contact", unblock: "Débloquer le contact", blockedByYou: "Vous avez bloqué ce contact. Aucun message ne peut être envoyé.", blockedNotice: "Cette conversation est bloquée. Aucun message ne peut être envoyé.", record: "Enregistrer un message vocal", stop: "Envoyer le vocal", cancel: "Annuler l'enregistrement", micUnavailable: "L'enregistrement vocal n'est pas disponible sur cet appareil.", voiceFailed: "Envoi du vocal impossible. Réessaie.", voiceUnavailable: "Vocal indisponible", voicePreview: "Message vocal", profile: "Mon profil", changePhoto: "Changer la photo", uploading: "Envoi en cours...", photoBadType: "Choisis une image PNG, JPEG ou WebP.", photoFailed: "Impossible de mettre à jour la photo.", logout: "Se déconnecter", loadingOlder: "Chargement des messages…", historyStart: "Début de la conversation", username: "Pseudo", bio: "Statut", bioPlaceholder: "Disponible", save: "Enregistrer", saving: "Enregistrement…", saved: "Profil enregistré.", usernameTaken: "Ce pseudo est déjà pris.", usernameInvalid: "Pseudo invalide : 3 à 30 caractères (minuscules, chiffres, . ou _).", contactProfile: "Profil du contact", noBio: "Aucun statut.", typingUser: "en train d'écrire…" },
-    en: { brand: "PULSE", private: "PRIVATE MESSAGING", title: "Conversations that matter.", subtitle: "A living space to talk, create, and keep the thread.", login: "Log in", register: "Create account", name: "Display name", email: "Email", password: "Password", enter: "Enter Pulse", create: "Create my space", search: "Search a conversation", messages: "Messages", newChat: "New conversation", assistant: "AI Assistant", online: "Online", offline: "Offline", write: "Write a message...", aiGreeting: "Hello. I can help you draft, summarize, or organize an idea.", supabaseMissing: "Supabase is not configured. Add the variables to .env.local and restart Next.js.", searchUser: "Search a user (name or @username)", noUserFound: "No user found.", close: "Close", sendFailed: "Could not send. Try again.", typing: "Gemini is typing...", block: "Block this contact", unblock: "Unblock this contact", blockedByYou: "You blocked this contact. No message can be sent.", blockedNotice: "This conversation is blocked. No message can be sent.", record: "Record a voice message", stop: "Send the voice message", cancel: "Cancel the recording", micUnavailable: "Voice recording is not available on this device.", voiceFailed: "Could not send the voice message. Try again.", voiceUnavailable: "Voice message unavailable", voicePreview: "Voice message", profile: "My profile", changePhoto: "Change photo", uploading: "Uploading...", photoBadType: "Choose a PNG, JPEG or WebP image.", photoFailed: "Could not update the photo.", logout: "Log out", loadingOlder: "Loading messages…", historyStart: "Start of the conversation", username: "Username", bio: "Status", bioPlaceholder: "Available", save: "Save", saving: "Saving…", saved: "Profile saved.", usernameTaken: "This username is already taken.", usernameInvalid: "Invalid username: 3-30 characters (lowercase letters, digits, . or _).", contactProfile: "Contact profile", noBio: "No status.", typingUser: "is typing…" }
+    fr: { brand: "PULSE", private: "MESSAGERIE PRIVÉE", title: "Les conversations qui comptent.", subtitle: "Un espace vivant pour parler, créer et garder le fil.", login: "Se connecter", register: "Créer un compte", name: "Nom affiché", email: "Email", password: "Mot de passe", enter: "Entrer dans Pulse", create: "Créer mon espace", search: "Rechercher une conversation", messages: "Messages", newChat: "Nouvelle conversation", assistant: "Assistant IA", online: "En ligne", offline: "Hors ligne", write: "Écrire un message...", aiGreeting: "Bonjour. Je peux t'aider à rédiger, résumer ou organiser une idée.", supabaseMissing: "Supabase n'est pas configuré. Ajoute les variables dans .env.local puis redémarre Next.js.", searchUser: "Rechercher un utilisateur (nom ou @pseudo)", noUserFound: "Aucun utilisateur trouvé.", close: "Fermer", sendFailed: "Envoi impossible. Réessaie.", typing: "Gemini écrit...", block: "Bloquer le contact", unblock: "Débloquer le contact", blockedByYou: "Vous avez bloqué ce contact. Aucun message ne peut être envoyé.", blockedNotice: "Cette conversation est bloquée. Aucun message ne peut être envoyé.", record: "Enregistrer un message vocal", stop: "Envoyer le vocal", cancel: "Annuler l'enregistrement", micUnavailable: "L'enregistrement vocal n'est pas disponible sur cet appareil.", voiceFailed: "Envoi du vocal impossible. Réessaie.", voiceUnavailable: "Vocal indisponible", voicePreview: "Message vocal", profile: "Mon profil", changePhoto: "Changer la photo", uploading: "Envoi en cours...", photoBadType: "Choisis une image PNG, JPEG ou WebP.", photoFailed: "Impossible de mettre à jour la photo.", logout: "Se déconnecter", loadingOlder: "Chargement des messages…", historyStart: "Début de la conversation", username: "Pseudo", bio: "Statut", bioPlaceholder: "Disponible", save: "Enregistrer", saving: "Enregistrement…", saved: "Profil enregistré.", usernameTaken: "Ce pseudo est déjà pris.", usernameInvalid: "Pseudo invalide : 3 à 30 caractères (minuscules, chiffres, . ou _).", contactProfile: "Profil du contact", noBio: "Aucun statut.", typingUser: "en train d'écrire…", directChat: "Discussion", newGroup: "Nouveau groupe", groupNamePlaceholder: "Nom du groupe", createGroup: "Créer le groupe", creating: "Création…", groupFailed: "Création du groupe impossible. Réessaie.", members: "membres", member: "Membre", you: "Vous", newMessage: "Nouveau message", notifyEnable: "Activer les notifications", notifyDisable: "Désactiver les notifications", notifyDenied: "Notifications bloquées par les réglages du navigateur." },
+    en: { brand: "PULSE", private: "PRIVATE MESSAGING", title: "Conversations that matter.", subtitle: "A living space to talk, create, and keep the thread.", login: "Log in", register: "Create account", name: "Display name", email: "Email", password: "Password", enter: "Enter Pulse", create: "Create my space", search: "Search a conversation", messages: "Messages", newChat: "New conversation", assistant: "AI Assistant", online: "Online", offline: "Offline", write: "Write a message...", aiGreeting: "Hello. I can help you draft, summarize, or organize an idea.", supabaseMissing: "Supabase is not configured. Add the variables to .env.local and restart Next.js.", searchUser: "Search a user (name or @username)", noUserFound: "No user found.", close: "Close", sendFailed: "Could not send. Try again.", typing: "Gemini is typing...", block: "Block this contact", unblock: "Unblock this contact", blockedByYou: "You blocked this contact. No message can be sent.", blockedNotice: "This conversation is blocked. No message can be sent.", record: "Record a voice message", stop: "Send the voice message", cancel: "Cancel the recording", micUnavailable: "Voice recording is not available on this device.", voiceFailed: "Could not send the voice message. Try again.", voiceUnavailable: "Voice message unavailable", voicePreview: "Voice message", profile: "My profile", changePhoto: "Change photo", uploading: "Uploading...", photoBadType: "Choose a PNG, JPEG or WebP image.", photoFailed: "Could not update the photo.", logout: "Log out", loadingOlder: "Loading messages…", historyStart: "Start of the conversation", username: "Username", bio: "Status", bioPlaceholder: "Available", save: "Save", saving: "Saving…", saved: "Profile saved.", usernameTaken: "This username is already taken.", usernameInvalid: "Invalid username: 3-30 characters (lowercase letters, digits, . or _).", contactProfile: "Contact profile", noBio: "No status.", typingUser: "is typing…", directChat: "Chat", newGroup: "New group", groupNamePlaceholder: "Group name", createGroup: "Create group", creating: "Creating…", groupFailed: "Could not create the group. Try again.", members: "members", member: "Member", you: "You", newMessage: "New message", notifyEnable: "Enable notifications", notifyDisable: "Disable notifications", notifyDenied: "Notifications are blocked in your browser settings." }
 };
 
 const aiEntry = (language: Language): ConversationListItem => ({ id: "ai-gemini", name: "Gemini AI", preview: copy[language].assistant, online: true, avatar: "/images/gemini-avatar.svg" });
@@ -75,6 +75,14 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
     const [hasOlder, setHasOlder] = useState(false);
     const [loadingOlder, setLoadingOlder] = useState(false);
     const [hasHistory, setHasHistory] = useState(false);
+    const [notifyOn, setNotifyOn] = useState(false);
+    const [notifyDenied, setNotifyDenied] = useState(false);
+    const [groupMode, setGroupMode] = useState(false);
+    const [groupName, setGroupName] = useState("");
+    const [groupMembers, setGroupMembers] = useState<Profile[]>([]);
+    const [groupBusy, setGroupBusy] = useState(false);
+    const [groupError, setGroupError] = useState("");
+    const [roster, setRoster] = useState<Record<string, string>>({});
     const t = copy[language];
     const supabase = useMemo(() => createClient(), []);
 
@@ -101,11 +109,21 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
     const lastTypingSentRef = useRef(0);
     const updateTimerRef = useRef<number | null>(null);
     const updateNeedsRefreshRef = useRef(false);
+    const notifyOnRef = useRef(false);
+    notifyOnRef.current = notifyOn;
+    const conversationsRef = useRef<ConversationListItem[]>([]);
+    conversationsRef.current = conversations;
+    const rosterRef = useRef<Record<string, string>>({});
+    rosterRef.current = roster;
+    const tRef = useRef(t);
+    tRef.current = t;
 
     useEffect(() => {
         const savedLanguage = window.localStorage.getItem("pulse-language");
         if (savedLanguage === "en" || savedLanguage === "fr") setLanguage(savedLanguage);
         setDark(window.localStorage.getItem("pulse-theme") === "dark");
+        setNotifyOn(window.localStorage.getItem("pulse-notify") === "1");
+        if (typeof Notification !== "undefined") setNotifyDenied(Notification.permission === "denied");
         if (!supabase) return;
         supabase.auth.getUser().then(({ data }) => setUser(data.user ? { id: data.user.id, email: data.user.email } : null));
         const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ? { id: session.user.id, email: session.user.email } : null));
@@ -179,7 +197,7 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
         if (!supabase || !user) return;
         const [convs, unreadRows] = await Promise.all([
             supabase.from("conversation_members")
-                .select("conversation_id, conversations(id, type, name, created_at, messages(id, content, created_at, type), conversation_members(user_id, users(id, name, username, avatar, online, last_seen)))")
+                .select("conversation_id, conversations(id, type, name, created_at, messages(id, content, created_at, type, sender_id), conversation_members(user_id, users(id, name, username, avatar, online, last_seen)))")
                 .eq("user_id", user.id)
                 .order("created_at", { referencedTable: "conversations.messages", ascending: false })
                 .limit(1, { referencedTable: "conversations.messages" }),
@@ -191,23 +209,35 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
             unreadByConversation.set(row.conversation_id, (unreadByConversation.get(row.conversation_id) ?? 0) + 1);
         }
         const rows = (convs.data ?? []) as unknown as { conversations: ConvShape | null }[];
-        const items: ConversationListItem[] = rows
+        const loaded = rows
             .map(row => row.conversations)
-            .filter((conv): conv is ConvShape => conv !== null && conv.type !== "ai")
-            .map(conv => {
-                const other = (conv.conversation_members ?? []).map(member => member.users).find(u => u && u.id !== user.id);
-                const last = (conv.messages ?? []).slice().sort((a, b) => a.created_at.localeCompare(b.created_at)).at(-1);
-                return {
-                    id: conv.id,
-                    name: conv.type === "direct" && other ? (other.name || other.username || "Membre") : conv.name,
-                    preview: last ? (last.type === "audio" ? copy[language].voicePreview : last.content) : "",
-                    online: conv.type === "direct" ? other?.online : undefined,
-                    avatar: conv.type === "direct" && other?.avatar ? other.avatar : undefined,
-                    otherUserId: conv.type === "direct" && other ? other.id : undefined,
-                    otherLastSeen: conv.type === "direct" ? other?.last_seen ?? null : undefined,
-                    unread: unreadByConversation.get(conv.id) ?? 0
-                };
-            });
+            .filter((conv): conv is ConvShape => conv !== null && conv.type !== "ai");
+        // Annuaire local des membres : sert aux noms d'expéditeur dans les groupes et aux notifications.
+        const names: Record<string, string> = {};
+        for (const conv of loaded) for (const member of conv.conversation_members ?? []) {
+            if (member.users && member.users.id !== user.id) names[member.users.id] = member.users.name || member.users.username || "";
+        }
+        if (Object.keys(names).length > 0) setRoster(current => ({ ...current, ...names }));
+        const items: ConversationListItem[] = loaded.map(conv => {
+            const other = (conv.conversation_members ?? []).map(member => member.users).find(u => u && u.id !== user.id);
+            const last = (conv.messages ?? []).slice().sort((a, b) => a.created_at.localeCompare(b.created_at)).at(-1);
+            const previewText = last ? (last.type === "audio" ? copy[language].voicePreview : last.content) : "";
+            const author = conv.type === "group" && last?.sender_id
+                ? (last.sender_id === user.id ? copy[language].you : names[last.sender_id] ?? copy[language].member)
+                : null;
+            return {
+                id: conv.id,
+                name: conv.type === "direct" && other ? (other.name || other.username || "Membre") : conv.name,
+                preview: author ? `${author}: ${previewText}` : previewText,
+                online: conv.type === "direct" ? other?.online : undefined,
+                avatar: conv.type === "direct" && other?.avatar ? other.avatar : undefined,
+                otherUserId: conv.type === "direct" && other ? other.id : undefined,
+                otherLastSeen: conv.type === "direct" ? other?.last_seen ?? null : undefined,
+                unread: unreadByConversation.get(conv.id) ?? 0,
+                isGroup: conv.type === "group",
+                memberCount: (conv.conversation_members ?? []).length
+            };
+        });
         setConversations(items);
     }, [supabase, user, language]);
 
@@ -242,8 +272,20 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
         return () => { active = false; };
     }, [supabase, user, activeConvId, selectedId, blockedIds]);
 
+    // Complète l'annuaire pour les expéditeurs pas encore croisés dans une conversation chargée.
+    const resolveNames = useCallback(async (ids: string[]) => {
+        if (!supabase || ids.length === 0) return;
+        const { data } = await supabase.from("users").select("id, name, username").in("id", ids);
+        if (!data?.length) return;
+        const found: Record<string, string> = {};
+        for (const row of data as { id: string; name: string; username: string | null }[]) found[row.id] = row.name || row.username || "";
+        setRoster(current => ({ ...current, ...found }));
+    }, [supabase]);
+
     const toMessages = useCallback(async (rows: DbMessageRow[]): Promise<ChatMessage[]> => {
         if (!supabase || !user) return [];
+        const unknownSenders = [...new Set(rows.map(row => row.sender_id).filter((id): id is string => id !== null && id !== user.id && !(id in rosterRef.current)))];
+        if (unknownSenders.length > 0) void resolveNames(unknownSenders);
         const audioPaths = rows.flatMap(row => (row.attachments ?? []).filter(attachment => Boolean(attachment.url)).map(attachment => attachment.url));
         const signedUrls = new Map<string, string>();
         if (audioPaths.length > 0) {
@@ -259,12 +301,13 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
                 createdAt: row.created_at,
                 status: row.status,
                 type: row.type,
+                senderId: row.sender_id,
                 audioUrl: row.type === "audio" && attachment ? signedUrls.get(attachment.url) ?? null : null,
                 audioPath: row.type === "audio" && attachment ? attachment.url : null,
                 durationSeconds: attachment?.duration_seconds ?? null
             };
         });
-    }, [supabase, user]);
+    }, [supabase, user, resolveNames]);
 
     const resignAudioUrl = useCallback(async (path: string) => {
         if (!supabase) return null;
@@ -411,11 +454,15 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
         if (!supabase || !user) return;
         const channel = supabase.channel("pulse-realtime")
             .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, payload => {
+                const row = payload.new as { conversation_id: string; sender_id: string | null; content: string; type: string };
                 const active = selectedRef.current === "ai-gemini" ? aiConvRef.current : selectedRef.current;
-                if (active && (payload.new as { conversation_id: string }).conversation_id === active) {
+                const isActive = Boolean(active && row.conversation_id === active);
+                if (isActive) {
                     reloadMessagesRef.current();
-                    if (document.visibilityState === "visible") void markActiveRead(active);
+                    if (document.visibilityState === "visible") void markActiveRead(active!);
                 }
+                // Notification seulement pour un message reçu ailleurs, ou onglet en arrière-plan
+                if (row.sender_id && row.sender_id !== user.id && (document.visibilityState !== "visible" || !isActive)) showMessageNotification(row);
                 loadConversations();
             })
             .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages" }, payload => {
@@ -479,22 +526,51 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
         void channel.send({ type: "broadcast", event: "typing", payload: { userId: user.id, name: profile?.name ?? "" } });
     }
 
+    // Notifications du navigateur : la permission est demandée sur un geste explicite (cloche).
+    async function toggleNotifications() {
+        if (typeof Notification === "undefined") return;
+        if (notifyOn) { setNotifyOn(false); window.localStorage.setItem("pulse-notify", "0"); return; }
+        if (Notification.permission === "denied") { setNotifyDenied(true); return; }
+        const granted = Notification.permission === "granted" || (await Notification.requestPermission()) === "granted";
+        setNotifyDenied(!granted);
+        setNotifyOn(granted);
+        window.localStorage.setItem("pulse-notify", granted ? "1" : "0");
+    }
+
+    function showMessageNotification(row: { conversation_id: string; sender_id: string | null; content: string; type: string }) {
+        if (!notifyOnRef.current || typeof Notification === "undefined" || Notification.permission !== "granted") return;
+        const labels = tRef.current;
+        const conv = conversationsRef.current.find(item => item.id === row.conversation_id);
+        const sender = row.sender_id ? rosterRef.current[row.sender_id] ?? labels.member : "";
+        const title = conv?.isGroup && conv.name ? (sender ? `${sender} · ${conv.name}` : conv.name) : conv?.name || sender || labels.newMessage;
+        try {
+            const note = new Notification(title, { body: row.type === "audio" ? labels.voicePreview : row.content, tag: row.conversation_id });
+            note.onclick = () => { window.focus(); setSelectedId(row.conversation_id); setShowList(false); setMenuOpen(false); note.close(); };
+        } catch { /* certains environnements (Android) exigent un service worker */ }
+    }
+
     const visibleConversations = useMemo(
         () => [aiEntry(language), ...conversations].filter(item => item.name.toLowerCase().includes(query.toLowerCase())),
         [conversations, query, language]
     );
     const selectedConversation = visibleConversations.find(item => item.id === selectedId) ?? aiEntry(language);
     const otherId = selectedConversation.otherUserId;
+    const isGroup = Boolean(selectedConversation.isGroup);
     const selectedRecentlyOnline = otherId
         ? isRecentlyOnline(selectedConversation.online, selectedConversation.otherLastSeen)
         : Boolean(selectedConversation.online);
     const presenceSubtitle = selectedConversation.id === "ai-gemini"
         ? `${t.online} · ${t.assistant}`
-        : otherId
-            ? typingUser !== null
-                ? t.typingUser
-                : selectedRecentlyOnline ? t.online : selectedConversation.otherLastSeen ? formatLastSeen(selectedConversation.otherLastSeen, language) : t.offline
-            : selectedConversation.online ? t.online : t.offline;
+        : isGroup
+            ? typingUser !== null ? t.typingUser : `${selectedConversation.memberCount ?? 1} ${t.members}`
+            : otherId
+                ? typingUser !== null
+                    ? t.typingUser
+                    : selectedRecentlyOnline ? t.online : selectedConversation.otherLastSeen ? formatLastSeen(selectedConversation.otherLastSeen, language) : t.offline
+                : selectedConversation.online ? t.online : t.offline;
+    const headerAvatar = selectedConversation.isGroup
+        ? <span className="avatar group-avatar" aria-hidden="true">👥</span>
+        : <img className="avatar" src={selectedConversation.avatar || (selectedConversation.id === "ai-gemini" ? "/images/gemini-avatar.svg" : "/images/default-avatar.svg")} alt="" />;
 
     async function submitAuth(event: FormEvent) {
         event.preventDefault();
@@ -621,6 +697,45 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
         return () => clearTimeout(timer);
     }, [newChatOpen, userQuery, user]);
 
+    function closeNewChat() {
+        setNewChatOpen(false);
+        setUserQuery("");
+        setUserResults([]);
+        setGroupMode(false);
+        setGroupName("");
+        setGroupMembers([]);
+        setGroupError("");
+    }
+
+    function toggleGroupMember(found: Profile) {
+        setGroupError("");
+        setGroupMembers(current => current.some(member => member.id === found.id) ? current.filter(member => member.id !== found.id) : [...current, found]);
+    }
+
+    async function createGroup() {
+        const name = groupName.trim();
+        if (!supabase || !user || groupBusy || !name || groupMembers.length === 0) return;
+        setGroupBusy(true);
+        setGroupError("");
+        try {
+            // Id généré côté client : INSERT ... RETURNING échouerait, la politique SELECT exige d'être membre.
+            const id = crypto.randomUUID();
+            const created = await supabase.from("conversations").insert({ id, type: "group", name });
+            if (created.error) throw new Error(created.error.message);
+            // L'adhésion du créateur passe par auth.uid() = user_id ; elle ouvre ensuite l'insertion des autres.
+            const mine = await supabase.from("conversation_members").insert({ conversation_id: id, user_id: user.id });
+            if (mine.error) throw new Error(mine.error.message);
+            const others = await supabase.from("conversation_members").insert(groupMembers.map(member => ({ conversation_id: id, user_id: member.id })));
+            if (others.error) throw new Error(others.error.message);
+            closeNewChat();
+            await loadConversations();
+            setSelectedId(id);
+            setShowList(false);
+        } catch {
+            setGroupError(t.groupFailed);
+        } finally { setGroupBusy(false); }
+    }
+
     async function startConversation(target: Profile) {
         if (!supabase || !user || startBusy) return;
         setStartBusy(true);
@@ -634,7 +749,7 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
                 if (!response.ok) throw new Error(payload.error || t.sendFailed);
                 conversationId = payload.conversation.id;
             }
-            setNewChatOpen(false); setUserQuery(""); setUserResults([]);
+            closeNewChat();
             await loadConversations();
             if (conversationId) { setSelectedId(conversationId); setShowList(false); }
         } finally { setStartBusy(false); }
@@ -644,7 +759,7 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
 
     return <main className={`pulse-shell ${showList ? "show-list" : ""}`}>
         <aside className="pulse-sidebar">
-            <header className="pulse-topbar"><div className="brand"><span className="brand-mark">✦</span>{t.brand}</div><div className="top-actions"><button className="icon-button" onClick={() => setLanguage(language === "fr" ? "en" : "fr")}>{language.toUpperCase()}</button><button className="icon-button" onClick={() => setDark(!dark)}>{dark ? "☀" : "☾"}</button></div></header>
+            <header className="pulse-topbar"><div className="brand"><span className="brand-mark">✦</span>{t.brand}</div><div className="top-actions"><button className={`icon-button ${notifyOn ? "notify-on" : ""}`} type="button" onClick={() => void toggleNotifications()} aria-label={notifyOn ? t.notifyDisable : t.notifyEnable} title={notifyDenied ? t.notifyDenied : notifyOn ? t.notifyDisable : t.notifyEnable}>{notifyOn ? "🔔" : "🔕"}</button><button className="icon-button" onClick={() => setLanguage(language === "fr" ? "en" : "fr")}>{language.toUpperCase()}</button><button className="icon-button" onClick={() => setDark(!dark)}>{dark ? "☀" : "☾"}</button></div></header>
             <div className="search"><input aria-label={t.search} placeholder={t.search} value={query} onChange={event => setQuery(event.target.value)} /></div>
             <div className="sidebar-heading"><strong>{t.messages}</strong><button className="new-chat" aria-label={t.newChat} type="button" onClick={() => setNewChatOpen(true)}>＋</button></div>
             <ConversationList items={visibleConversations} selectedId={selectedId} onSelect={id => { setSelectedId(id); setShowList(false); setMenuOpen(false); }} />
@@ -655,12 +770,12 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
                 <button className="icon-button back-button" type="button" onClick={() => setShowList(true)}>←</button>
                 {otherId
                     ? <button className="chat-identity" type="button" onClick={() => void openContactProfile(otherId)}>
-                        <img className="avatar" src={selectedConversation.avatar || "/images/default-avatar.svg"} alt="" />
+                        {headerAvatar}
                         <div className="chat-title"><h2>{selectedConversation.name}</h2><p className={typingUser !== null ? "typing" : selectedRecentlyOnline ? "" : "muted"}>{presenceSubtitle}</p></div>
                     </button>
                     : <>
-                        <img className="avatar" src={selectedConversation.avatar || (selectedConversation.id === "ai-gemini" ? "/images/gemini-avatar.svg" : "/images/default-avatar.svg")} alt="" />
-                        <div className="chat-title"><h2>{selectedConversation.name}</h2><p>{presenceSubtitle}</p></div>
+                        {headerAvatar}
+                        <div className="chat-title"><h2>{selectedConversation.name}</h2><p className={typingUser !== null ? "typing" : ""}>{presenceSubtitle}</p></div>
                     </>}
                 {otherId && <div className="chat-menu-wrap">
                     <button className="icon-button" type="button" aria-label={t.block} onClick={() => setMenuOpen(open => !open)}>•••</button>
@@ -675,7 +790,7 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
             <div className="message-list" ref={listRef} onScroll={handleListScroll}>
                 {loadingOlder && <div className="list-status"><span className="spinner" aria-hidden="true" />{t.loadingOlder}</div>}
                 {!loadingOlder && !hasOlder && hasHistory && <div className="list-status">{t.historyStart}</div>}
-                {messages.map(message => <MessageBubble key={message.id} content={message.content} outgoing={message.role === "user"} createdAt={message.createdAt} status={message.status} isAudio={message.type === "audio"} audioUrl={message.audioUrl} audioPath={message.audioPath} onResignAudio={resignAudioUrl} audioFallback={t.voiceUnavailable} />)}
+                {messages.map(message => <MessageBubble key={message.id} content={message.content} outgoing={message.role === "user"} createdAt={message.createdAt} status={message.status} isAudio={message.type === "audio"} audioUrl={message.audioUrl} audioPath={message.audioPath} onResignAudio={resignAudioUrl} audioFallback={t.voiceUnavailable} senderName={isGroup && message.role !== "user" ? (message.senderId ? roster[message.senderId] ?? t.member : undefined) : undefined} />)}
                 {isSending && selectedId === "ai-gemini" && <div className="message-row"><div className="bubble">{t.typing}</div></div>}
             </div>
             {convBlocked && selectedConversation.otherUserId ? <div className="blocked-banner">
@@ -685,15 +800,27 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
         </section>
         {profileOpen && user && <ProfileModal userId={user.id} email={user.email} name={profile?.name ?? ""} username={profile?.username ?? null} status={profile?.status ?? null} avatar={profile?.avatar ?? null} labels={{ title: t.profile, changePhoto: t.changePhoto, uploading: t.uploading, badType: t.photoBadType, failed: t.photoFailed, logout: t.logout, close: t.close, name: t.name, username: t.username, bio: t.bio, bioPlaceholder: t.bioPlaceholder, save: t.save, saving: t.saving, saved: t.saved, usernameTaken: t.usernameTaken, usernameInvalid: t.usernameInvalid }} onSaved={values => { setProfile(current => current ? { ...current, name: values.name, username: values.username, status: values.status, avatar: values.avatar } : current); void loadConversations(); }} onClose={() => setProfileOpen(false)} onLogout={logout} />}
         {contactProfile && <ContactProfileModal profile={contactProfile} blocked={blockedIds.has(contactProfile.id)} language={language} labels={{ title: t.contactProfile, bio: t.bio, noBio: t.noBio, online: t.online, offline: t.offline, block: t.block, unblock: t.unblock, close: t.close }} onToggleBlock={() => void toggleBlockFor(contactProfile.id)} onClose={() => setContactProfile(null)} />}
-        {newChatOpen && <div className="modal-overlay" onClick={() => setNewChatOpen(false)}>
+        {newChatOpen && <div className="modal-overlay" onClick={closeNewChat}>
             <div className="modal" onClick={event => event.stopPropagation()}>
-                <h3>{t.newChat}</h3>
+                <div className="modal-tabs">
+                    <button className={groupMode ? "" : "active"} type="button" onClick={() => { setGroupMode(false); setGroupError(""); }}>{t.directChat}</button>
+                    <button className={groupMode ? "active" : ""} type="button" onClick={() => { setGroupMode(true); setGroupError(""); }}>{t.newGroup}</button>
+                </div>
+                {groupMode && <input className="modal-input" maxLength={120} placeholder={t.groupNamePlaceholder} value={groupName} onChange={event => setGroupName(event.target.value)} />}
+                {groupMode && groupMembers.length > 0 && <div className="group-chips">{groupMembers.map(member => <button key={member.id} className="group-chip" type="button" onClick={() => toggleGroupMember(member)}><span>{member.name || member.username}</span><span aria-hidden="true">✕</span></button>)}</div>}
                 <input autoFocus className="modal-input" placeholder={t.searchUser} value={userQuery} onChange={event => setUserQuery(event.target.value)} />
                 <div className="user-results">
-                    {userResults.map(found => <button key={found.id} className="user-result" type="button" disabled={startBusy} onClick={() => startConversation(found)}><img className="avatar" src={found.avatar || "/images/default-avatar.svg"} alt="" /><span className="user-result-copy"><strong>{found.name || found.username}</strong>{found.username && <small> @{found.username}</small>}{isRecentlyOnline(found.online, found.last_seen) && <em className="online-label"> · {t.online}</em>}</span></button>)}
+                    {userResults.map(found => {
+                        const picked = groupMode && groupMembers.some(member => member.id === found.id);
+                        return <button key={found.id} className={`user-result ${picked ? "selected" : ""}`} type="button" disabled={startBusy || groupBusy} onClick={() => groupMode ? toggleGroupMember(found) : void startConversation(found)}><img className="avatar" src={found.avatar || "/images/default-avatar.svg"} alt="" /><span className="user-result-copy"><strong>{found.name || found.username}</strong>{found.username && <small> @{found.username}</small>}{isRecentlyOnline(found.online, found.last_seen) && <em className="online-label"> · {t.online}</em>}</span>{picked && <span className="user-check" aria-hidden="true">✓</span>}</button>;
+                    })}
                     {userQuery.trim().length >= 2 && !usersLoading && userResults.length === 0 && <p className="modal-empty">{t.noUserFound}</p>}
                 </div>
-                <button className="modal-close" type="button" onClick={() => setNewChatOpen(false)}>{t.close}</button>
+                {groupMode && <div className="modal-actions">
+                    {groupError && <span className="error">{groupError}</span>}
+                    <button className="primary" type="button" disabled={groupBusy || !groupName.trim() || groupMembers.length === 0} onClick={() => void createGroup()}>{groupBusy ? t.creating : t.createGroup}</button>
+                </div>}
+                <button className="modal-close" type="button" onClick={closeNewChat}>{t.close}</button>
             </div>
         </div>}
     </main>;

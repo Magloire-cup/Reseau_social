@@ -12,9 +12,10 @@ type MessageBubbleProps = {
     audioPath?: string | null;
     onResignAudio?: (path: string) => Promise<string | null>;
     audioFallback?: string;
+    senderName?: string;
 };
 
-export function MessageBubble({ content, outgoing = false, createdAt, status, isAudio = false, audioUrl, audioPath, onResignAudio, audioFallback }: MessageBubbleProps) {
+export function MessageBubble({ content, outgoing = false, createdAt, status, isAudio = false, audioUrl, audioPath, onResignAudio, audioFallback, senderName }: MessageBubbleProps) {
     const time = new Date(createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     const [src, setSrc] = useState(audioUrl || "");
     const [failed, setFailed] = useState(false);
@@ -46,6 +47,7 @@ export function MessageBubble({ content, outgoing = false, createdAt, status, is
     }
 
     return <div className={`message-row ${outgoing ? "outgoing" : ""}`}><div className={`bubble${isAudio ? " audio" : ""}`}>
+        {senderName && <span className="bubble-sender">{senderName}</span>}
         {isAudio
             ? src && !failed
                 ? <audio className="voice-note" controls preload="metadata" src={src} onError={handleAudioError} />

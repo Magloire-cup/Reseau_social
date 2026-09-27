@@ -121,3 +121,17 @@ button.chat-identity:hover { background: var(--hover); }
 .profile-form input { padding: 11px 13px; border: 1px solid var(--line); border-radius: 9px; outline: 0; background: var(--panel); color: var(--text); }
 .secondary { padding: 11px 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); color: var(--text); font-weight: 700; }
 .profile-modal .secondary { width: 100%; }
+.icon-button.notify-on { color: var(--green); }
+.modal-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 10px; background: var(--panel); }
+.modal-tabs button { padding: 9px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-weight: 700; }
+.modal-tabs button.active { background: var(--surface); color: var(--green); box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.group-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.group-chip { display: flex; align-items: center; gap: 6px; padding: 5px 6px 5px 11px; border-radius: 999px; background: var(--green-soft); color: var(--text); font-size: .8rem; font-weight: 700; }
+.group-chip button { display: grid; place-items: center; width: 18px; height: 18px; border: 0; border-radius: 50%; background: rgba(0,0,0,.08); color: inherit; font-size: .7rem; line-height: 1; }
+[data-theme="dark"] .group-chip button { background: rgba(255,255,255,.12); }
+.user-result.selected { background: var(--hover); }
+.user-check { flex: 0 0 auto; margin-left: auto; color: var(--green); font-weight: 800; }
+.modal-actions { display: grid; gap: 8px; }
+.primary:disabled { opacity: .55; cursor: not-allowed; }
+.group-avatar { background: var(--hover); font-size: 1.15rem; }
+.bubble-sender { display: block; margin-bottom: 3px; color: var(--green); font-size: .74rem; font-weight: 800; }
