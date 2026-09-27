@@ -21,6 +21,7 @@ export type ProfileLabels = {
     usernameTaken: string;
     usernameInvalid: string;
     install: string;
+    installHelp: string;
     iosInstallHint: string;
     installed: string;
 };
@@ -155,9 +156,12 @@ export function ProfileModal({ userId, email, name, username, status, avatar, la
             {saved && <span className="profile-saved">{labels.saved}</span>}
             {install.installed
                 ? <small className="profile-installed">{labels.installed}</small>
-                : install.canInstall
-                    ? <button className="secondary install-button" type="button" onClick={onInstall}>{labels.install}</button>
-                    : install.isIos ? <small className="profile-ios-hint">{labels.iosInstallHint}</small> : null}
+                : <>
+                    {install.canInstall
+                        ? <button className="secondary install-button" type="button" onClick={onInstall}>{labels.install}</button>
+                        : install.isIos ? <small className="profile-ios-hint">{labels.iosInstallHint}</small> : null}
+                    <a className="profile-install-help" href="/download">{labels.installHelp}</a>
+                </>}
             <button className="danger-button" type="button" onClick={onLogout}>{labels.logout}</button>
             <button className="modal-close" type="button" onClick={onClose}>{labels.close}</button>
         </div>
