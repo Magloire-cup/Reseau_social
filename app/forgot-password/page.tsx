@@ -15,5 +15,5 @@ export default function ForgotPasswordPage() {
         setMessage(result.error?.message || "Un email de réinitialisation a été envoyé.");
     }
 
-    return <main className="auth"><section className="auth-card"><div className="brand"><span className="brand-mark">✦</span>PULSE</div><h1>Mot de passe oublié</h1><p>Entre ton email pour recevoir un lien sécurisé.</p><form className="auth-form" onSubmit={submit}><label>Email<input required type="email" value={email} onChange={event => setEmail(event.target.value)} /></label><button className="primary" type="submit">Envoyer le lien</button></form><p>{message}</p></section></main>;
+    return <main className="auth"><section className="auth-card"><div className="brand"><span className="brand-mark">✦</span>Pulse Messenger</div><h1>Mot de passe oublié</h1><p>Entre ton email pour recevoir un lien sécurisé.</p><form className="auth-form" onSubmit={submit}><label>Email<input required type="email" value={email} onChange={event => setEmail(event.target.value)} /></label><button className="primary" type="submit">Envoyer le lien</button></form><p>{message}</p></section></main>;
 }
