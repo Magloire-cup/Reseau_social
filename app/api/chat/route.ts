@@ -7,6 +7,8 @@ export const maxDuration = 30;
 
 type InputMessage = { role: "user" | "model"; content: string };
 
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function fallback(prompt: string, language: string) {
     return language === "en"
         ? `I understood: “${prompt}”. I can help you rewrite, summarize, or organize this idea.`
@@ -15,7 +17,7 @@ function fallback(prompt: string, language: string) {
 
 export async function POST(request: Request) {
     try {
-        const body = await request.json() as { conversationId?: string; messages?: InputMessage[]; language?: string };
+        const body = await request.json() as { conversationId?: string; messages?: InputMessage[]; language?: string; userMessageId?: string };
         const messages = Array.isArray(body.messages) ? body.messages.slice(-20) : [];
         const last = messages.at(-1);
         if (!body.conversationId || !last?.content?.trim()) return NextResponse.json({ error: "Message invalide." }, { status: 400 });
@@ -29,7 +31,10 @@ export async function POST(request: Request) {
             currentUserId = auth.data.user.id;
             const membership = await supabase.from("conversation_members").select("conversation_id").eq("conversation_id", body.conversationId).eq("user_id", currentUserId).maybeSingle();
             if (membership.error || !membership.data) return NextResponse.json({ error: "Conversation inaccessible." }, { status: 403 });
-            if (last.role === "user") await supabase.from("messages").insert({ conversation_id: body.conversationId, sender_id: currentUserId, content: last.content, type: "text", status: "sent" });
+            if (last.role === "user") {
+                const userMessageId = body.userMessageId && uuidPattern.test(body.userMessageId) ? body.userMessageId : null;
+                await supabase.from("messages").insert({ id: userMessageId ?? undefined, conversation_id: body.conversationId, sender_id: currentUserId, content: last.content, type: "text", status: "sent" });
+            }
         }
 
         let content = fallback(last.content, body.language === "en" ? "en" : "fr");

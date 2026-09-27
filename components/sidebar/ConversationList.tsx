@@ -1,4 +1,4 @@
-export type ConversationListItem = { id: string; name: string; preview: string; online?: boolean; avatar?: string };
+export type ConversationListItem = { id: string; name: string; preview: string; online?: boolean; avatar?: string; otherUserId?: string };
 
 type ConversationListProps = { items: ConversationListItem[]; selectedId: string; onSelect: (id: string) => void };
 
