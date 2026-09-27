@@ -51,6 +51,6 @@ export function MessageBubble({ content, outgoing = false, createdAt, status, is
                 ? <audio className="voice-note" controls preload="metadata" src={src} onError={handleAudioError} />
                 : <span className="voice-unavailable">{audioFallback}</span>
             : content}
-        <span className="message-meta">{time}{outgoing ? ` ${status === "read" ? "✓✓" : "✓"}` : ""}</span>
+        <span className="message-meta">{time}{outgoing && <span className={`ticks${status === "read" ? " read" : ""}`}>{status === "read" ? "✓✓" : "✓"}</span>}</span>
     </div></div>;
 }

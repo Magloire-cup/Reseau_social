@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useMemo, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, useMemo, useRef, useState } from "react";
 import { createClient } from "../../lib/supabase/client";
 
 export type ProfileLabels = {
@@ -11,20 +11,34 @@ export type ProfileLabels = {
     failed: string;
     logout: string;
     close: string;
+    name: string;
+    username: string;
+    bio: string;
+    bioPlaceholder: string;
+    save: string;
+    saving: string;
+    saved: string;
+    usernameTaken: string;
+    usernameInvalid: string;
 };
+
+export type ProfileValues = { name: string; username: string | null; status: string; avatar: string | null };
 
 type ProfileModalProps = {
     userId: string;
     email?: string;
     name: string;
+    username: string | null;
+    status: string | null;
     avatar: string | null;
     labels: ProfileLabels;
-    onAvatarSaved: (url: string) => void;
+    onSaved: (values: ProfileValues) => void;
     onClose: () => void;
     onLogout: () => void;
 };
 
 const MAX_SIDE = 512;
+const USERNAME_PATTERN = /^[a-z0-9._]{3,30}$/;
 
 async function toSquareWebp(file: File): Promise<{ blob: Blob; contentType: string; extension: string }> {
     const fallback = { blob: file, contentType: file.type || "image/jpeg", extension: file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg" };
@@ -47,11 +61,15 @@ async function toSquareWebp(file: File): Promise<{ blob: Blob; contentType: stri
     }
 }
 
-export function ProfileModal({ userId, email, name, avatar, labels, onAvatarSaved, onClose, onLogout }: ProfileModalProps) {
+export function ProfileModal({ userId, email, name, username, status, avatar, labels, onSaved, onClose, onLogout }: ProfileModalProps) {
     const supabase = useMemo(() => createClient(), []);
     const fileRef = useRef<HTMLInputElement | null>(null);
     const [preview, setPreview] = useState(avatar || "");
+    const [nameValue, setNameValue] = useState(name || "");
+    const [usernameValue, setUsernameValue] = useState(username || "");
+    const [statusValue, setStatusValue] = useState(status || "");
     const [uploading, setUploading] = useState(false);
+    const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
     const [saved, setSaved] = useState(false);
 
@@ -77,8 +95,7 @@ export function ProfileModal({ userId, email, name, avatar, labels, onAvatarSave
             const stale = ["jpg", "png", "webp"].filter(candidate => candidate !== extension).map(candidate => `${userId}/avatar.${candidate}`);
             void supabase.storage.from("avatars").remove(stale);
             setPreview(publicUrl);
-            setSaved(true);
-            onAvatarSaved(publicUrl);
+            onSaved({ name: nameValue.trim() || name, username: usernameValue, status: statusValue, avatar: publicUrl });
         } catch {
             setError(labels.failed);
         } finally {
@@ -86,16 +103,51 @@ export function ProfileModal({ userId, email, name, avatar, labels, onAvatarSave
         }
     }
 
+    async function saveProfile(event: FormEvent) {
+        event.preventDefault();
+        setError("");
+        setSaved(false);
+        const trimmedName = nameValue.trim();
+        const normalized = usernameValue.trim().toLowerCase();
+        if (!trimmedName) return;
+        if (normalized && !USERNAME_PATTERN.test(normalized)) { setError(labels.usernameInvalid); return; }
+        if (!supabase || saving) return;
+        setSaving(true);
+        try {
+            const update = await supabase.from("users").update({
+                name: trimmedName,
+                username: normalized || null,
+                status: statusValue.trim().slice(0, 100) || "Disponible",
+            }).eq("id", userId);
+            if (update.error) {
+                setError(update.error.code === "23505" ? labels.usernameTaken : labels.failed);
+                return;
+            }
+            setUsernameValue(normalized);
+            setSaved(true);
+            onSaved({ name: trimmedName, username: normalized || null, status: statusValue.trim().slice(0, 100) || "Disponible", avatar: preview || null });
+        } catch {
+            setError(labels.failed);
+        } finally {
+            setSaving(false);
+        }
+    }
+
     return <div className="modal-overlay" onClick={onClose}>
         <div className="modal profile-modal" onClick={event => event.stopPropagation()}>
             <h3>{labels.title}</h3>
             <div className="profile-avatar-preview"><img className="avatar" src={preview || "/images/default-avatar.svg"} alt="" /></div>
-            <strong className="profile-name">{name || email}</strong>
-            {email && <small className="profile-email">{email}</small>}
             <input ref={fileRef} className="file-input" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFile} />
-            <button className="primary" type="button" disabled={uploading} onClick={() => fileRef.current?.click()}>{uploading ? labels.uploading : labels.changePhoto}</button>
+            <button className="secondary" type="button" disabled={uploading} onClick={() => fileRef.current?.click()}>{uploading ? labels.uploading : labels.changePhoto}</button>
+            {email && <small className="profile-email">{email}</small>}
+            <form className="profile-form" onSubmit={saveProfile}>
+                <label>{labels.name}<input value={nameValue} maxLength={80} onChange={event => setNameValue(event.target.value)} /></label>
+                <label>{labels.username}<input value={usernameValue} maxLength={30} onChange={event => setUsernameValue(event.target.value)} placeholder="pseudo" /></label>
+                <label>{labels.bio}<input value={statusValue} maxLength={100} onChange={event => setStatusValue(event.target.value)} placeholder={labels.bioPlaceholder} /></label>
+                <button className="primary" type="submit" disabled={saving || !nameValue.trim()}>{saving ? labels.saving : labels.save}</button>
+            </form>
             {error && <span className="error">{error}</span>}
-            {saved && <span className="profile-saved">✓</span>}
+            {saved && <span className="profile-saved">{labels.saved}</span>}
             <button className="danger-button" type="button" onClick={onLogout}>{labels.logout}</button>
             <button className="modal-close" type="button" onClick={onClose}>{labels.close}</button>
         </div>

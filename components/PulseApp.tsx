@@ -1,16 +1,19 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { askGemini, type GeminiMessage } from "../lib/gemini";
 import { createClient } from "../lib/supabase/client";
+import { formatLastSeen, isRecentlyOnline } from "../lib/format";
 import { ConversationList, type ConversationListItem } from "./sidebar/ConversationList";
 import { MessageBubble } from "./chat/MessageBubble";
 import { MessageInput } from "./chat/MessageInput";
 import { ProfileModal } from "./profile/ProfileModal";
+import { ContactProfileModal, type ContactProfile } from "./profile/ContactProfileModal";
 
 type Language = "fr" | "en";
 type ChatMessage = GeminiMessage & { id: string; createdAt: string; status?: "sent" | "delivered" | "read"; type?: string; audioUrl?: string | null; audioPath?: string | null; durationSeconds?: number | null };
-type Profile = { id: string; name: string; username: string | null; avatar: string | null; online: boolean; status?: string };
+type Profile = { id: string; name: string; username: string | null; avatar: string | null; online: boolean; status?: string | null; last_seen?: string | null };
 type DbAttachment = { url: string; mime_type: string; duration_seconds: number | null };
 type DbMessageRow = { id: string; conversation_id: string; sender_id: string | null; content: string; type: string; status: "sent" | "delivered" | "read"; created_at: string; attachments?: DbAttachment[] | null };
 type ConvShape = {
@@ -20,8 +23,8 @@ type ConvShape = {
 };
 
 const copy = {
-    fr: { brand: "PULSE", private: "MESSAGERIE PRIVÉE", title: "Les conversations qui comptent.", subtitle: "Un espace vivant pour parler, créer et garder le fil.", login: "Se connecter", register: "Créer un compte", name: "Nom affiché", email: "Email", password: "Mot de passe", enter: "Entrer dans Pulse", create: "Créer mon espace", search: "Rechercher une conversation", messages: "Messages", newChat: "Nouvelle conversation", assistant: "Assistant IA", online: "En ligne", offline: "Hors ligne", write: "Écrire un message...", aiGreeting: "Bonjour. Je peux t'aider à rédiger, résumer ou organiser une idée.", supabaseMissing: "Supabase n'est pas configuré. Ajoute les variables dans .env.local puis redémarre Next.js.", searchUser: "Rechercher un utilisateur (nom ou @pseudo)", noUserFound: "Aucun utilisateur trouvé.", close: "Fermer", sendFailed: "Envoi impossible. Réessaie.", typing: "Gemini écrit...", block: "Bloquer le contact", unblock: "Débloquer le contact", blockedByYou: "Vous avez bloqué ce contact. Aucun message ne peut être envoyé.", blockedNotice: "Cette conversation est bloquée. Aucun message ne peut être envoyé.", record: "Enregistrer un message vocal", stop: "Envoyer le vocal", cancel: "Annuler l'enregistrement", micUnavailable: "L'enregistrement vocal n'est pas disponible sur cet appareil.", voiceFailed: "Envoi du vocal impossible. Réessaie.", voiceUnavailable: "Vocal indisponible", voicePreview: "Message vocal", profile: "Mon profil", changePhoto: "Changer la photo", uploading: "Envoi en cours...", photoBadType: "Choisis une image PNG, JPEG ou WebP.", photoFailed: "Impossible de mettre à jour la photo.", logout: "Se déconnecter", loadingOlder: "Chargement des messages…", historyStart: "Début de la conversation" },
-    en: { brand: "PULSE", private: "PRIVATE MESSAGING", title: "Conversations that matter.", subtitle: "A living space to talk, create, and keep the thread.", login: "Log in", register: "Create account", name: "Display name", email: "Email", password: "Password", enter: "Enter Pulse", create: "Create my space", search: "Search a conversation", messages: "Messages", newChat: "New conversation", assistant: "AI Assistant", online: "Online", offline: "Offline", write: "Write a message...", aiGreeting: "Hello. I can help you draft, summarize, or organize an idea.", supabaseMissing: "Supabase is not configured. Add the variables to .env.local and restart Next.js.", searchUser: "Search a user (name or @username)", noUserFound: "No user found.", close: "Close", sendFailed: "Could not send. Try again.", typing: "Gemini is typing...", block: "Block this contact", unblock: "Unblock this contact", blockedByYou: "You blocked this contact. No message can be sent.", blockedNotice: "This conversation is blocked. No message can be sent.", record: "Record a voice message", stop: "Send the voice message", cancel: "Cancel the recording", micUnavailable: "Voice recording is not available on this device.", voiceFailed: "Could not send the voice message. Try again.", voiceUnavailable: "Voice message unavailable", voicePreview: "Voice message", profile: "My profile", changePhoto: "Change photo", uploading: "Uploading...", photoBadType: "Choose a PNG, JPEG or WebP image.", photoFailed: "Could not update the photo.", logout: "Log out", loadingOlder: "Loading messages…", historyStart: "Start of the conversation" }
+    fr: { brand: "PULSE", private: "MESSAGERIE PRIVÉE", title: "Les conversations qui comptent.", subtitle: "Un espace vivant pour parler, créer et garder le fil.", login: "Se connecter", register: "Créer un compte", name: "Nom affiché", email: "Email", password: "Mot de passe", enter: "Entrer dans Pulse", create: "Créer mon espace", search: "Rechercher une conversation", messages: "Messages", newChat: "Nouvelle conversation", assistant: "Assistant IA", online: "En ligne", offline: "Hors ligne", write: "Écrire un message...", aiGreeting: "Bonjour. Je peux t'aider à rédiger, résumer ou organiser une idée.", supabaseMissing: "Supabase n'est pas configuré. Ajoute les variables dans .env.local puis redémarre Next.js.", searchUser: "Rechercher un utilisateur (nom ou @pseudo)", noUserFound: "Aucun utilisateur trouvé.", close: "Fermer", sendFailed: "Envoi impossible. Réessaie.", typing: "Gemini écrit...", block: "Bloquer le contact", unblock: "Débloquer le contact", blockedByYou: "Vous avez bloqué ce contact. Aucun message ne peut être envoyé.", blockedNotice: "Cette conversation est bloquée. Aucun message ne peut être envoyé.", record: "Enregistrer un message vocal", stop: "Envoyer le vocal", cancel: "Annuler l'enregistrement", micUnavailable: "L'enregistrement vocal n'est pas disponible sur cet appareil.", voiceFailed: "Envoi du vocal impossible. Réessaie.", voiceUnavailable: "Vocal indisponible", voicePreview: "Message vocal", profile: "Mon profil", changePhoto: "Changer la photo", uploading: "Envoi en cours...", photoBadType: "Choisis une image PNG, JPEG ou WebP.", photoFailed: "Impossible de mettre à jour la photo.", logout: "Se déconnecter", loadingOlder: "Chargement des messages…", historyStart: "Début de la conversation", username: "Pseudo", bio: "Statut", bioPlaceholder: "Disponible", save: "Enregistrer", saving: "Enregistrement…", saved: "Profil enregistré.", usernameTaken: "Ce pseudo est déjà pris.", usernameInvalid: "Pseudo invalide : 3 à 30 caractères (minuscules, chiffres, . ou _).", contactProfile: "Profil du contact", noBio: "Aucun statut.", typingUser: "en train d'écrire…" },
+    en: { brand: "PULSE", private: "PRIVATE MESSAGING", title: "Conversations that matter.", subtitle: "A living space to talk, create, and keep the thread.", login: "Log in", register: "Create account", name: "Display name", email: "Email", password: "Password", enter: "Enter Pulse", create: "Create my space", search: "Search a conversation", messages: "Messages", newChat: "New conversation", assistant: "AI Assistant", online: "Online", offline: "Offline", write: "Write a message...", aiGreeting: "Hello. I can help you draft, summarize, or organize an idea.", supabaseMissing: "Supabase is not configured. Add the variables to .env.local and restart Next.js.", searchUser: "Search a user (name or @username)", noUserFound: "No user found.", close: "Close", sendFailed: "Could not send. Try again.", typing: "Gemini is typing...", block: "Block this contact", unblock: "Unblock this contact", blockedByYou: "You blocked this contact. No message can be sent.", blockedNotice: "This conversation is blocked. No message can be sent.", record: "Record a voice message", stop: "Send the voice message", cancel: "Cancel the recording", micUnavailable: "Voice recording is not available on this device.", voiceFailed: "Could not send the voice message. Try again.", voiceUnavailable: "Voice message unavailable", voicePreview: "Voice message", profile: "My profile", changePhoto: "Change photo", uploading: "Uploading...", photoBadType: "Choose a PNG, JPEG or WebP image.", photoFailed: "Could not update the photo.", logout: "Log out", loadingOlder: "Loading messages…", historyStart: "Start of the conversation", username: "Username", bio: "Status", bioPlaceholder: "Available", save: "Save", saving: "Saving…", saved: "Profile saved.", usernameTaken: "This username is already taken.", usernameInvalid: "Invalid username: 3-30 characters (lowercase letters, digits, . or _).", contactProfile: "Contact profile", noBio: "No status.", typingUser: "is typing…" }
 };
 
 const aiEntry = (language: Language): ConversationListItem => ({ id: "ai-gemini", name: "Gemini AI", preview: copy[language].assistant, online: true, avatar: "/images/gemini-avatar.svg" });
@@ -67,6 +70,8 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
     const [convBlocked, setConvBlocked] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
+    const [contactProfile, setContactProfile] = useState<ContactProfile | null>(null);
+    const [typingUser, setTypingUser] = useState<string | null>(null);
     const [hasOlder, setHasOlder] = useState(false);
     const [loadingOlder, setLoadingOlder] = useState(false);
     const [hasHistory, setHasHistory] = useState(false);
@@ -91,6 +96,11 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
     const loadingOlderRef = useRef(false);
     const languageRef = useRef(language);
     languageRef.current = language;
+    const typingChannelRef = useRef<RealtimeChannel | null>(null);
+    const typingTimerRef = useRef<number | null>(null);
+    const lastTypingSentRef = useRef(0);
+    const updateTimerRef = useRef<number | null>(null);
+    const updateNeedsRefreshRef = useRef(false);
 
     useEffect(() => {
         const savedLanguage = window.localStorage.getItem("pulse-language");
@@ -110,20 +120,39 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
 
     useEffect(() => { document.documentElement.dataset.theme = dark ? "dark" : "light"; window.localStorage.setItem("pulse-theme", dark ? "dark" : "light"); }, [dark]);
 
-    // Profil + présence
+    // Profil + présence : « en ligne » avec battement régulier, dernière activité à la déconnexion
     useEffect(() => {
         if (!supabase || !user) return;
         let active = true;
+        // Les builders PostgREST sont paresseux : sans .then(), la requête n'est jamais envoyée.
+        const touch = (online: boolean) => {
+            void supabase
+                .from("users")
+                .update({ online, last_seen: new Date().toISOString() })
+                .eq("id", user.id)
+                .then(
+                    ({ error }) => { if (error) console.warn("presence:", error.message); },
+                    () => {}
+                );
+        };
         (async () => {
             await supabase.from("users").upsert({ id: user.id, name: user.email?.split("@")[0] ?? "" }, { onConflict: "id", ignoreDuplicates: true });
-            await supabase.from("users").update({ online: true }).eq("id", user.id);
-            const { data } = await supabase.from("users").select("id, name, username, avatar, online, status").eq("id", user.id).maybeSingle();
+            touch(true);
+            const { data } = await supabase.from("users").select("id, name, username, avatar, online, status, last_seen").eq("id", user.id).maybeSingle();
             if (active && data) setProfile(data);
         })();
-        const goOffline = () => { supabase.from("users").update({ online: false }).eq("id", user.id); };
+        const heartbeat = window.setInterval(() => touch(true), 60000);
+        const goOffline = () => touch(false);
         window.addEventListener("pagehide", goOffline);
-        return () => { active = false; window.removeEventListener("pagehide", goOffline); goOffline(); };
+        return () => { active = false; window.clearInterval(heartbeat); window.removeEventListener("pagehide", goOffline); goOffline(); };
     }, [supabase, user]);
+
+    // L'horodatage « vu il y a … » se rafraîchit tout seul, même sans événement réseau
+    const [, setClock] = useState(0);
+    useEffect(() => {
+        const timer = window.setInterval(() => setClock(value => value + 1), 60000);
+        return () => window.clearInterval(timer);
+    }, []);
 
     // Conversation IA dédiée par utilisateur
     const aiInitRef = useRef<string | null>(null);
@@ -148,12 +177,20 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
 
     const loadConversations = useCallback(async () => {
         if (!supabase || !user) return;
-        const { data } = await supabase.from("conversation_members")
-            .select("conversation_id, conversations(id, type, name, created_at, messages(id, content, created_at, type), conversation_members(user_id, users(id, name, username, avatar, online)))")
-            .eq("user_id", user.id)
-            .order("created_at", { referencedTable: "conversations.messages", ascending: false })
-            .limit(1, { referencedTable: "conversations.messages" });
-        const rows = (data ?? []) as unknown as { conversations: ConvShape | null }[];
+        const [convs, unreadRows] = await Promise.all([
+            supabase.from("conversation_members")
+                .select("conversation_id, conversations(id, type, name, created_at, messages(id, content, created_at, type), conversation_members(user_id, users(id, name, username, avatar, online, last_seen)))")
+                .eq("user_id", user.id)
+                .order("created_at", { referencedTable: "conversations.messages", ascending: false })
+                .limit(1, { referencedTable: "conversations.messages" }),
+            // Messages non lus reçus (sender_id non nul : les réponses IA sont exclues d'office par neq)
+            supabase.from("messages").select("conversation_id").neq("status", "read").neq("sender_id", user.id).limit(500)
+        ]);
+        const unreadByConversation = new Map<string, number>();
+        for (const row of (unreadRows.data ?? []) as { conversation_id: string }[]) {
+            unreadByConversation.set(row.conversation_id, (unreadByConversation.get(row.conversation_id) ?? 0) + 1);
+        }
+        const rows = (convs.data ?? []) as unknown as { conversations: ConvShape | null }[];
         const items: ConversationListItem[] = rows
             .map(row => row.conversations)
             .filter((conv): conv is ConvShape => conv !== null && conv.type !== "ai")
@@ -166,13 +203,24 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
                     preview: last ? (last.type === "audio" ? copy[language].voicePreview : last.content) : "",
                     online: conv.type === "direct" ? other?.online : undefined,
                     avatar: conv.type === "direct" && other?.avatar ? other.avatar : undefined,
-                    otherUserId: conv.type === "direct" && other ? other.id : undefined
+                    otherUserId: conv.type === "direct" && other ? other.id : undefined,
+                    otherLastSeen: conv.type === "direct" ? other?.last_seen ?? null : undefined,
+                    unread: unreadByConversation.get(conv.id) ?? 0
                 };
             });
         setConversations(items);
     }, [supabase, user, language]);
 
     useEffect(() => { loadConversations(); }, [loadConversations]);
+
+    // Accusés de lecture : l'expéditeur ne peut pas marquer ses propres messages,
+    // d'où la RPC (SECURITY DEFINER) qui vérifie l'appartenance à la conversation.
+    const markActiveRead = useCallback(async (conversationId: string) => {
+        if (!supabase || !user || !conversationId || selectedRef.current === "ai-gemini") return;
+        const { data, error } = await supabase.rpc("mark_conversation_read", { conv_id: conversationId });
+        if (error) return;
+        if (typeof data === "number" && data > 0) setConversations(current => current.map(item => item.id === conversationId ? { ...item, unread: 0 } : item));
+    }, [supabase, user]);
 
     // Blocages émis par l'utilisateur courant
     const loadBlocks = useCallback(async () => {
@@ -288,8 +336,9 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
                 setHasHistory(true);
             }
             setMessages(page.messages);
+            void markActiveRead(activeConvId);
         })();
-    }, [activeConvId, fetchPage]);
+    }, [activeConvId, fetchPage, markActiveRead]);
 
     // Nouveaux messages : on refusionne la page la plus récente (dédoublonnée par id),
     // ce qui garde aussi les pages plus anciennes déjà chargées.
@@ -327,6 +376,17 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
 
     reloadMessagesRef.current = refreshNewest;
 
+    // Les UPDATE de messages arrivent en rafale (lecture d'un lot) : un seul rafraîchissement différé
+    const scheduleUpdateRefresh = useCallback((refreshActive: boolean) => {
+        if (refreshActive) updateNeedsRefreshRef.current = true;
+        if (updateTimerRef.current !== null) return;
+        updateTimerRef.current = window.setTimeout(() => {
+            updateTimerRef.current = null;
+            if (updateNeedsRefreshRef.current) { updateNeedsRefreshRef.current = false; void refreshNewest(); }
+            void loadConversations();
+        }, 400);
+    }, [refreshNewest, loadConversations]);
+
     useLayoutEffect(() => {
         const list = listRef.current;
         if (!list) return;
@@ -346,26 +406,95 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
         if (list.scrollTop < LOAD_OLDER_THRESHOLD) loadOlder();
     }
 
-    // Realtime : nouveaux messages, nouvelles conversations, présence
+    // Realtime : nouveaux messages, accusés de lecture, nouvelles conversations, présence
     useEffect(() => {
         if (!supabase || !user) return;
         const channel = supabase.channel("pulse-realtime")
             .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, payload => {
                 const active = selectedRef.current === "ai-gemini" ? aiConvRef.current : selectedRef.current;
-                if (active && (payload.new as { conversation_id: string }).conversation_id === active) reloadMessagesRef.current();
+                if (active && (payload.new as { conversation_id: string }).conversation_id === active) {
+                    reloadMessagesRef.current();
+                    if (document.visibilityState === "visible") void markActiveRead(active);
+                }
                 loadConversations();
             })
+            .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages" }, payload => {
+                // Nos propres messages passés à « lu » par le destinataire : on rafraîchit pour les ✓✓
+                const row = payload.new as { conversation_id?: string; sender_id?: string | null };
+                const active = selectedRef.current === "ai-gemini" ? aiConvRef.current : selectedRef.current;
+                scheduleUpdateRefresh(Boolean(active && row.conversation_id === active && row.sender_id === user.id));
+            })
             .on("postgres_changes", { event: "INSERT", schema: "public", table: "conversation_members", filter: `user_id=eq.${user.id}` }, () => loadConversations())
-            .on("postgres_changes", { event: "UPDATE", schema: "public", table: "users" }, () => loadConversations())
+            .on("postgres_changes", { event: "UPDATE", schema: "public", table: "users" }, payload => {
+                const row = payload.new as Partial<Profile> & { id?: string };
+                if (row?.id) setContactProfile(current => current && current.id === row.id ? { ...current, ...row } : current);
+                loadConversations();
+            })
             .subscribe();
         return () => { supabase.removeChannel(channel); };
-    }, [supabase, user, loadConversations]);
+    }, [supabase, user, loadConversations, markActiveRead, scheduleUpdateRefresh]);
+
+    // Revenir sur l'onglet vaut lecture de la conversation ouverte
+    useEffect(() => {
+        if (!supabase || !user) return;
+        const onVisible = () => {
+            if (document.visibilityState !== "visible") return;
+            const active = selectedRef.current === "ai-gemini" ? aiConvRef.current : selectedRef.current;
+            if (!active) return;
+            void markActiveRead(active);
+            reloadMessagesRef.current();
+        };
+        window.addEventListener("focus", onVisible);
+        document.addEventListener("visibilitychange", onVisible);
+        return () => { window.removeEventListener("focus", onVisible); document.removeEventListener("visibilitychange", onVisible); };
+    }, [supabase, user, markActiveRead]);
+
+    // « en train d'écrire… » : diffusion éphémère sur le canal de la conversation ouverte
+    useEffect(() => {
+        if (!supabase || !user || !activeConvId) { setTypingUser(null); return; }
+        const channel = supabase.channel(`typing-${activeConvId}`, { config: { broadcast: { self: false } } })
+            .on("broadcast", { event: "typing" }, ({ payload }) => {
+                const data = payload as { userId?: string } | null;
+                if (!data?.userId || data.userId === user.id) return;
+                setTypingUser(data.userId);
+                if (typingTimerRef.current !== null) window.clearTimeout(typingTimerRef.current);
+                typingTimerRef.current = window.setTimeout(() => { typingTimerRef.current = null; setTypingUser(null); }, 3500);
+            })
+            .subscribe();
+        typingChannelRef.current = channel;
+        return () => {
+            typingChannelRef.current = null;
+            if (typingTimerRef.current !== null) { window.clearTimeout(typingTimerRef.current); typingTimerRef.current = null; }
+            setTypingUser(null);
+            void supabase.removeChannel(channel);
+        };
+    }, [supabase, user, activeConvId]);
+
+    function notifyTyping() {
+        const channel = typingChannelRef.current;
+        if (!channel || !user || selectedRef.current === "ai-gemini") return;
+        const now = Date.now();
+        if (now - lastTypingSentRef.current < 2500) return;
+        lastTypingSentRef.current = now;
+        void channel.send({ type: "broadcast", event: "typing", payload: { userId: user.id, name: profile?.name ?? "" } });
+    }
 
     const visibleConversations = useMemo(
         () => [aiEntry(language), ...conversations].filter(item => item.name.toLowerCase().includes(query.toLowerCase())),
         [conversations, query, language]
     );
     const selectedConversation = visibleConversations.find(item => item.id === selectedId) ?? aiEntry(language);
+    const otherId = selectedConversation.otherUserId;
+    const selectedRecentlyOnline = otherId
+        ? isRecentlyOnline(selectedConversation.online, selectedConversation.otherLastSeen)
+        : Boolean(selectedConversation.online);
+    const presenceSubtitle = selectedConversation.id === "ai-gemini"
+        ? `${t.online} · ${t.assistant}`
+        : otherId
+            ? typingUser !== null
+                ? t.typingUser
+                : selectedRecentlyOnline ? t.online : selectedConversation.otherLastSeen ? formatLastSeen(selectedConversation.otherLastSeen, language) : t.offline
+            : selectedConversation.online ? t.online : t.offline;
 
     async function submitAuth(event: FormEvent) {
         event.preventDefault();
@@ -458,14 +587,23 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
         } finally { setIsSending(false); loadConversations(); }
     }
 
-    async function toggleBlock() {
+    async function toggleBlockFor(targetId: string) {
         if (!supabase || !user) return;
-        const targetId = selectedConversation.otherUserId;
-        if (!targetId) return;
         if (blockedIds.has(targetId)) await supabase.from("blocks").delete().eq("blocker_id", user.id).eq("blocked_id", targetId);
         else await supabase.from("blocks").insert({ blocker_id: user.id, blocked_id: targetId });
         setMenuOpen(false);
         await loadBlocks();
+    }
+
+    function toggleBlock() {
+        const targetId = selectedConversation.otherUserId;
+        if (targetId) return toggleBlockFor(targetId);
+    }
+
+    async function openContactProfile(targetId: string) {
+        if (!supabase) return;
+        const { data } = await supabase.from("users").select("id, name, username, avatar, online, status, last_seen").eq("id", targetId).maybeSingle();
+        if (data) setContactProfile(data as ContactProfile);
     }
 
     useEffect(() => {
@@ -515,14 +653,21 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
         <section className="chat-panel">
             <header className="chat-header">
                 <button className="icon-button back-button" type="button" onClick={() => setShowList(true)}>←</button>
-                <img className="avatar" src={selectedConversation.avatar || (selectedConversation.id === "ai-gemini" ? "/images/gemini-avatar.svg" : "/images/default-avatar.svg")} alt="" />
-                <div className="chat-title"><h2>{selectedConversation.name}</h2><p>{selectedConversation.id === "ai-gemini" ? `${t.online} · ${t.assistant}` : selectedConversation.online ? t.online : t.offline}</p></div>
-                {selectedConversation.otherUserId && <div className="chat-menu-wrap">
+                {otherId
+                    ? <button className="chat-identity" type="button" onClick={() => void openContactProfile(otherId)}>
+                        <img className="avatar" src={selectedConversation.avatar || "/images/default-avatar.svg"} alt="" />
+                        <div className="chat-title"><h2>{selectedConversation.name}</h2><p className={typingUser !== null ? "typing" : selectedRecentlyOnline ? "" : "muted"}>{presenceSubtitle}</p></div>
+                    </button>
+                    : <>
+                        <img className="avatar" src={selectedConversation.avatar || (selectedConversation.id === "ai-gemini" ? "/images/gemini-avatar.svg" : "/images/default-avatar.svg")} alt="" />
+                        <div className="chat-title"><h2>{selectedConversation.name}</h2><p>{presenceSubtitle}</p></div>
+                    </>}
+                {otherId && <div className="chat-menu-wrap">
                     <button className="icon-button" type="button" aria-label={t.block} onClick={() => setMenuOpen(open => !open)}>•••</button>
                     {menuOpen && <>
                         <div className="chat-menu-backdrop" onClick={() => setMenuOpen(false)} />
                         <div className="chat-menu">
-                            <button type="button" onClick={toggleBlock}>{blockedIds.has(selectedConversation.otherUserId) ? t.unblock : t.block}</button>
+                            <button type="button" onClick={() => void toggleBlock()}>{blockedIds.has(otherId) ? t.unblock : t.block}</button>
                         </div>
                     </>}
                 </div>}
@@ -536,15 +681,16 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
             {convBlocked && selectedConversation.otherUserId ? <div className="blocked-banner">
                 <span>{blockedIds.has(selectedConversation.otherUserId) ? t.blockedByYou : t.blockedNotice}</span>
                 {blockedIds.has(selectedConversation.otherUserId) && <button type="button" onClick={toggleBlock}>{t.unblock}</button>}
-            </div> : <MessageInput key={activeConvId ?? "pending"} placeholder={t.write} disabled={isSending} allowAudio={selectedId !== "ai-gemini" && Boolean(activeConvId)} labels={{ record: t.record, stop: t.stop, cancel: t.cancel, unavailable: t.micUnavailable, failed: t.voiceFailed }} onSend={sendMessage} onSendAudio={sendVoiceMessage} />}
+            </div> : <MessageInput key={activeConvId ?? "pending"} placeholder={t.write} disabled={isSending} allowAudio={selectedId !== "ai-gemini" && Boolean(activeConvId)} labels={{ record: t.record, stop: t.stop, cancel: t.cancel, unavailable: t.micUnavailable, failed: t.voiceFailed }} onSend={sendMessage} onSendAudio={sendVoiceMessage} onTyping={notifyTyping} />}
         </section>
-        {profileOpen && user && <ProfileModal userId={user.id} email={user.email} name={profile?.name ?? ""} avatar={profile?.avatar ?? null} labels={{ title: t.profile, changePhoto: t.changePhoto, uploading: t.uploading, badType: t.photoBadType, failed: t.photoFailed, logout: t.logout, close: t.close }} onAvatarSaved={url => setProfile(current => current ? { ...current, avatar: url } : current)} onClose={() => setProfileOpen(false)} onLogout={logout} />}
+        {profileOpen && user && <ProfileModal userId={user.id} email={user.email} name={profile?.name ?? ""} username={profile?.username ?? null} status={profile?.status ?? null} avatar={profile?.avatar ?? null} labels={{ title: t.profile, changePhoto: t.changePhoto, uploading: t.uploading, badType: t.photoBadType, failed: t.photoFailed, logout: t.logout, close: t.close, name: t.name, username: t.username, bio: t.bio, bioPlaceholder: t.bioPlaceholder, save: t.save, saving: t.saving, saved: t.saved, usernameTaken: t.usernameTaken, usernameInvalid: t.usernameInvalid }} onSaved={values => { setProfile(current => current ? { ...current, name: values.name, username: values.username, status: values.status, avatar: values.avatar } : current); void loadConversations(); }} onClose={() => setProfileOpen(false)} onLogout={logout} />}
+        {contactProfile && <ContactProfileModal profile={contactProfile} blocked={blockedIds.has(contactProfile.id)} language={language} labels={{ title: t.contactProfile, bio: t.bio, noBio: t.noBio, online: t.online, offline: t.offline, block: t.block, unblock: t.unblock, close: t.close }} onToggleBlock={() => void toggleBlockFor(contactProfile.id)} onClose={() => setContactProfile(null)} />}
         {newChatOpen && <div className="modal-overlay" onClick={() => setNewChatOpen(false)}>
             <div className="modal" onClick={event => event.stopPropagation()}>
                 <h3>{t.newChat}</h3>
                 <input autoFocus className="modal-input" placeholder={t.searchUser} value={userQuery} onChange={event => setUserQuery(event.target.value)} />
                 <div className="user-results">
-                    {userResults.map(found => <button key={found.id} className="user-result" type="button" disabled={startBusy} onClick={() => startConversation(found)}><img className="avatar" src={found.avatar || "/images/default-avatar.svg"} alt="" /><span className="user-result-copy"><strong>{found.name || found.username}</strong>{found.username && <small> @{found.username}</small>}{found.online && <em className="online-label"> · {t.online}</em>}</span></button>)}
+                    {userResults.map(found => <button key={found.id} className="user-result" type="button" disabled={startBusy} onClick={() => startConversation(found)}><img className="avatar" src={found.avatar || "/images/default-avatar.svg"} alt="" /><span className="user-result-copy"><strong>{found.name || found.username}</strong>{found.username && <small> @{found.username}</small>}{isRecentlyOnline(found.online, found.last_seen) && <em className="online-label"> · {t.online}</em>}</span></button>)}
                     {userQuery.trim().length >= 2 && !usersLoading && userResults.length === 0 && <p className="modal-empty">{t.noUserFound}</p>}
                 </div>
                 <button className="modal-close" type="button" onClick={() => setNewChatOpen(false)}>{t.close}</button>
