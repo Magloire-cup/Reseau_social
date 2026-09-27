@@ -139,3 +139,18 @@ button.chat-identity:hover { background: var(--hover); }
 .primary:disabled { opacity: .55; cursor: not-allowed; }
 .group-avatar { background: var(--hover); font-size: 1.15rem; }
 .bubble-sender { display: block; margin-bottom: 3px; color: var(--green); font-size: .74rem; font-weight: 800; }
+.call-button { color: var(--green); }
+.call-overlay { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 20px; background: rgba(10, 20, 25, .6); }
+.call-card { display: grid; justify-items: center; gap: 10px; width: min(340px, 100%); padding: 30px 24px; border-radius: 22px; background: var(--surface); box-shadow: var(--shadow); text-align: center; }
+.call-card h3 { margin: 0; font-size: 1.15rem; }
+.call-avatar { width: 96px; height: 96px; border-radius: 50%; background: #dcefeb; object-fit: cover; }
+.call-status { margin: 0; color: var(--green); font-weight: 700; }
+.call-timer { margin: 0; color: var(--muted); font-variant-numeric: tabular-nums; }
+.call-actions { display: flex; gap: 16px; margin-top: 12px; }
+.call-btn { display: grid; place-items: center; width: 58px; height: 58px; border: 1px solid var(--line); border-radius: 50%; background: var(--panel); color: var(--text); font-size: 1.3rem; }
+.call-btn.accept { border-color: transparent; background: var(--green); }
+.call-btn.reject { border-color: transparent; background: #d64545; }
+.call-btn.mute.muted { background: var(--hover); color: var(--muted); }
+.call-btn:hover { filter: brightness(1.06); }
+.profile-installed { color: var(--green); font-weight: 700; }
+.profile-ios-hint { color: var(--muted); font-size: .82rem; line-height: 1.45; }

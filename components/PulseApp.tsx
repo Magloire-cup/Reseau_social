@@ -10,6 +10,8 @@ import { MessageBubble } from "./chat/MessageBubble";
 import { MessageInput } from "./chat/MessageInput";
 import { ProfileModal } from "./profile/ProfileModal";
 import { ContactProfileModal, type ContactProfile } from "./profile/ContactProfileModal";
+import { CallOverlay } from "./call/CallOverlay";
+import { useVoiceCall } from "../lib/useVoiceCall";
 
 type Language = "fr" | "en";
 type ChatMessage = GeminiMessage & { id: string; createdAt: string; status?: "sent" | "delivered" | "read"; type?: string; audioUrl?: string | null; audioPath?: string | null; durationSeconds?: number | null; senderId?: string | null };
@@ -23,8 +25,8 @@ type ConvShape = {
 };
 
 const copy = {
-    fr: { brand: "PULSE", private: "MESSAGERIE PRIVÉE", title: "Les conversations qui comptent.", subtitle: "Un espace vivant pour parler, créer et garder le fil.", login: "Se connecter", register: "Créer un compte", name: "Nom affiché", email: "Email", password: "Mot de passe", enter: "Entrer dans Pulse", create: "Créer mon espace", search: "Rechercher une conversation", messages: "Messages", newChat: "Nouvelle conversation", assistant: "Assistant IA", online: "En ligne", offline: "Hors ligne", write: "Écrire un message...", aiGreeting: "Bonjour. Je peux t'aider à rédiger, résumer ou organiser une idée.", supabaseMissing: "Supabase n'est pas configuré. Ajoute les variables dans .env.local puis redémarre Next.js.", searchUser: "Rechercher un utilisateur (nom ou @pseudo)", noUserFound: "Aucun utilisateur trouvé.", close: "Fermer", sendFailed: "Envoi impossible. Réessaie.", typing: "Gemini écrit...", block: "Bloquer le contact", unblock: "Débloquer le contact", blockedByYou: "Vous avez bloqué ce contact. Aucun message ne peut être envoyé.", blockedNotice: "Cette conversation est bloquée. Aucun message ne peut être envoyé.", record: "Enregistrer un message vocal", stop: "Envoyer le vocal", cancel: "Annuler l'enregistrement", micUnavailable: "L'enregistrement vocal n'est pas disponible sur cet appareil.", voiceFailed: "Envoi du vocal impossible. Réessaie.", voiceUnavailable: "Vocal indisponible", voicePreview: "Message vocal", profile: "Mon profil", changePhoto: "Changer la photo", uploading: "Envoi en cours...", photoBadType: "Choisis une image PNG, JPEG ou WebP.", photoFailed: "Impossible de mettre à jour la photo.", logout: "Se déconnecter", loadingOlder: "Chargement des messages…", historyStart: "Début de la conversation", username: "Pseudo", bio: "Statut", bioPlaceholder: "Disponible", save: "Enregistrer", saving: "Enregistrement…", saved: "Profil enregistré.", usernameTaken: "Ce pseudo est déjà pris.", usernameInvalid: "Pseudo invalide : 3 à 30 caractères (minuscules, chiffres, . ou _).", contactProfile: "Profil du contact", noBio: "Aucun statut.", typingUser: "en train d'écrire…", directChat: "Discussion", newGroup: "Nouveau groupe", groupNamePlaceholder: "Nom du groupe", createGroup: "Créer le groupe", creating: "Création…", groupFailed: "Création du groupe impossible. Réessaie.", members: "membres", member: "Membre", you: "Vous", newMessage: "Nouveau message", notifyEnable: "Activer les notifications", notifyDisable: "Désactiver les notifications", notifyDenied: "Notifications bloquées par les réglages du navigateur.", pwShow: "Afficher le mot de passe", pwHide: "Masquer le mot de passe", confirmPassword: "Confirmer le mot de passe", pwMismatch: "Les deux mots de passe ne correspondent pas.", confirmEmail: "Compte créé. Vérifie ta boîte mail pour confirmer ton adresse, puis connecte-toi.", errAlreadyRegistered: "Un compte existe déjà avec cet email. Connecte-toi ou utilise un autre email.", errInvalidCredentials: "Email ou mot de passe incorrect.", errEmailNotConfirmed: "Confirme d'abord ton email, puis connecte-toi.", errInvalidEmail: "Adresse email invalide.", errWeakPassword: "Mot de passe trop faible : au moins 8 caractères.", errRateLimit: "Trop de tentatives. Patiente quelques minutes avant de réessayer.", errUnknown: "Une erreur est survenue. Réessaie." },
-    en: { brand: "PULSE", private: "PRIVATE MESSAGING", title: "Conversations that matter.", subtitle: "A living space to talk, create, and keep the thread.", login: "Log in", register: "Create account", name: "Display name", email: "Email", password: "Password", enter: "Enter Pulse", create: "Create my space", search: "Search a conversation", messages: "Messages", newChat: "New conversation", assistant: "AI Assistant", online: "Online", offline: "Offline", write: "Write a message...", aiGreeting: "Hello. I can help you draft, summarize, or organize an idea.", supabaseMissing: "Supabase is not configured. Add the variables to .env.local and restart Next.js.", searchUser: "Search a user (name or @username)", noUserFound: "No user found.", close: "Close", sendFailed: "Could not send. Try again.", typing: "Gemini is typing...", block: "Block this contact", unblock: "Unblock this contact", blockedByYou: "You blocked this contact. No message can be sent.", blockedNotice: "This conversation is blocked. No message can be sent.", record: "Record a voice message", stop: "Send the voice message", cancel: "Cancel the recording", micUnavailable: "Voice recording is not available on this device.", voiceFailed: "Could not send the voice message. Try again.", voiceUnavailable: "Voice message unavailable", voicePreview: "Voice message", profile: "My profile", changePhoto: "Change photo", uploading: "Uploading...", photoBadType: "Choose a PNG, JPEG or WebP image.", photoFailed: "Could not update the photo.", logout: "Log out", loadingOlder: "Loading messages…", historyStart: "Start of the conversation", username: "Username", bio: "Status", bioPlaceholder: "Available", save: "Save", saving: "Saving…", saved: "Profile saved.", usernameTaken: "This username is already taken.", usernameInvalid: "Invalid username: 3-30 characters (lowercase letters, digits, . or _).", contactProfile: "Contact profile", noBio: "No status.", typingUser: "is typing…", directChat: "Chat", newGroup: "New group", groupNamePlaceholder: "Group name", createGroup: "Create group", creating: "Creating…", groupFailed: "Could not create the group. Try again.", members: "members", member: "Member", you: "You", newMessage: "New message", notifyEnable: "Enable notifications", notifyDisable: "Disable notifications", notifyDenied: "Notifications are blocked in your browser settings.", pwShow: "Show password", pwHide: "Hide password", confirmPassword: "Confirm password", pwMismatch: "The two passwords do not match.", confirmEmail: "Account created. Check your inbox to confirm your address, then log in.", errAlreadyRegistered: "An account already exists with this email. Log in or use another email.", errInvalidCredentials: "Incorrect email or password.", errEmailNotConfirmed: "Confirm your email first, then log in.", errInvalidEmail: "Invalid email address.", errWeakPassword: "Password too weak: at least 8 characters.", errRateLimit: "Too many attempts. Wait a few minutes before retrying.", errUnknown: "Something went wrong. Try again." }
+    fr: { brand: "PULSE", private: "MESSAGERIE PRIVÉE", title: "Les conversations qui comptent.", subtitle: "Un espace vivant pour parler, créer et garder le fil.", login: "Se connecter", register: "Créer un compte", name: "Nom affiché", email: "Email", password: "Mot de passe", enter: "Entrer dans Pulse", create: "Créer mon espace", search: "Rechercher une conversation", messages: "Messages", newChat: "Nouvelle conversation", assistant: "Assistant IA", online: "En ligne", offline: "Hors ligne", write: "Écrire un message...", aiGreeting: "Bonjour. Je peux t'aider à rédiger, résumer ou organiser une idée.", supabaseMissing: "Supabase n'est pas configuré. Ajoute les variables dans .env.local puis redémarre Next.js.", searchUser: "Rechercher un utilisateur (nom ou @pseudo)", noUserFound: "Aucun utilisateur trouvé.", close: "Fermer", sendFailed: "Envoi impossible. Réessaie.", typing: "Gemini écrit...", block: "Bloquer le contact", unblock: "Débloquer le contact", blockedByYou: "Vous avez bloqué ce contact. Aucun message ne peut être envoyé.", blockedNotice: "Cette conversation est bloquée. Aucun message ne peut être envoyé.", record: "Enregistrer un message vocal", stop: "Envoyer le vocal", cancel: "Annuler l'enregistrement", micUnavailable: "L'enregistrement vocal n'est pas disponible sur cet appareil.", voiceFailed: "Envoi du vocal impossible. Réessaie.", voiceUnavailable: "Vocal indisponible", voicePreview: "Message vocal", profile: "Mon profil", changePhoto: "Changer la photo", uploading: "Envoi en cours...", photoBadType: "Choisis une image PNG, JPEG ou WebP.", photoFailed: "Impossible de mettre à jour la photo.", logout: "Se déconnecter", loadingOlder: "Chargement des messages…", historyStart: "Début de la conversation", username: "Pseudo", bio: "Statut", bioPlaceholder: "Disponible", save: "Enregistrer", saving: "Enregistrement…", saved: "Profil enregistré.", usernameTaken: "Ce pseudo est déjà pris.", usernameInvalid: "Pseudo invalide : 3 à 30 caractères (minuscules, chiffres, . ou _).", contactProfile: "Profil du contact", noBio: "Aucun statut.", typingUser: "en train d'écrire…", directChat: "Discussion", newGroup: "Nouveau groupe", groupNamePlaceholder: "Nom du groupe", createGroup: "Créer le groupe", creating: "Création…", groupFailed: "Création du groupe impossible. Réessaie.", members: "membres", member: "Membre", you: "Vous", newMessage: "Nouveau message", notifyEnable: "Activer les notifications", notifyDisable: "Désactiver les notifications", notifyDenied: "Notifications bloquées par les réglages du navigateur.", pwShow: "Afficher le mot de passe", pwHide: "Masquer le mot de passe", confirmPassword: "Confirmer le mot de passe", pwMismatch: "Les deux mots de passe ne correspondent pas.", confirmEmail: "Compte créé. Vérifie ta boîte mail pour confirmer ton adresse, puis connecte-toi.", errAlreadyRegistered: "Un compte existe déjà avec cet email. Connecte-toi ou utilise un autre email.", errInvalidCredentials: "Email ou mot de passe incorrect.", errEmailNotConfirmed: "Confirme d'abord ton email, puis connecte-toi.", errInvalidEmail: "Adresse email invalide.", errWeakPassword: "Mot de passe trop faible : au moins 8 caractères.", errRateLimit: "Trop de tentatives. Patiente quelques minutes avant de réessayer.", errUnknown: "Une erreur est survenue. Réessaie.", call: "Appel vocal", calling: "Appel en cours…", ringing: "Ça sonne…", connecting: "Connexion…", inCall: "En communication", declined: "Appel refusé", busy: "Contact occupé", noAnswer: "Pas de réponse", ended: "Appel terminé", failed: "Appel impossible", answer: "Répondre", decline: "Refuser", hangUp: "Raccrocher", mute: "Couper le micro", unmute: "Réactiver le micro", install: "Installer l'application", iosInstallHint: "Sur iPhone/iPad : bouton Partager puis « Sur l'écran d'accueil ».", installed: "Application installée sur cet appareil." },
+    en: { brand: "PULSE", private: "PRIVATE MESSAGING", title: "Conversations that matter.", subtitle: "A living space to talk, create, and keep the thread.", login: "Log in", register: "Create account", name: "Display name", email: "Email", password: "Password", enter: "Enter Pulse", create: "Create my space", search: "Search a conversation", messages: "Messages", newChat: "New conversation", assistant: "AI Assistant", online: "Online", offline: "Offline", write: "Write a message...", aiGreeting: "Hello. I can help you draft, summarize, or organize an idea.", supabaseMissing: "Supabase is not configured. Add the variables to .env.local and restart Next.js.", searchUser: "Search a user (name or @username)", noUserFound: "No user found.", close: "Close", sendFailed: "Could not send. Try again.", typing: "Gemini is typing...", block: "Block this contact", unblock: "Unblock this contact", blockedByYou: "You blocked this contact. No message can be sent.", blockedNotice: "This conversation is blocked. No message can be sent.", record: "Record a voice message", stop: "Send the voice message", cancel: "Cancel the recording", micUnavailable: "Voice recording is not available on this device.", voiceFailed: "Could not send the voice message. Try again.", voiceUnavailable: "Voice message unavailable", voicePreview: "Voice message", profile: "My profile", changePhoto: "Change photo", uploading: "Uploading...", photoBadType: "Choose a PNG, JPEG or WebP image.", photoFailed: "Could not update the photo.", logout: "Log out", loadingOlder: "Loading messages…", historyStart: "Start of the conversation", username: "Username", bio: "Status", bioPlaceholder: "Available", save: "Save", saving: "Saving…", saved: "Profile saved.", usernameTaken: "This username is already taken.", usernameInvalid: "Invalid username: 3-30 characters (lowercase letters, digits, . or _).", contactProfile: "Contact profile", noBio: "No status.", typingUser: "is typing…", directChat: "Chat", newGroup: "New group", groupNamePlaceholder: "Group name", createGroup: "Create group", creating: "Creating…", groupFailed: "Could not create the group. Try again.", members: "members", member: "Member", you: "You", newMessage: "New message", notifyEnable: "Enable notifications", notifyDisable: "Disable notifications", notifyDenied: "Notifications are blocked in your browser settings.", pwShow: "Show password", pwHide: "Hide password", confirmPassword: "Confirm password", pwMismatch: "The two passwords do not match.", confirmEmail: "Account created. Check your inbox to confirm your address, then log in.", errAlreadyRegistered: "An account already exists with this email. Log in or use another email.", errInvalidCredentials: "Incorrect email or password.", errEmailNotConfirmed: "Confirm your email first, then log in.", errInvalidEmail: "Invalid email address.", errWeakPassword: "Password too weak: at least 8 characters.", errRateLimit: "Too many attempts. Wait a few minutes before retrying.", errUnknown: "Something went wrong. Try again.", call: "Voice call", calling: "Calling…", ringing: "Ringing…", connecting: "Connecting…", inCall: "In call", declined: "Call declined", busy: "Contact busy", noAnswer: "No answer", ended: "Call ended", failed: "Call failed", answer: "Answer", decline: "Decline", hangUp: "Hang up", mute: "Mute microphone", unmute: "Unmute microphone", install: "Install the app", iosInstallHint: "On iPhone/iPad: tap Share, then “Add to Home Screen”.", installed: "App installed on this device." }
 };
 
 const aiEntry = (language: Language): ConversationListItem => ({ id: "ai-gemini", name: "Gemini AI", preview: copy[language].assistant, online: true, avatar: "/images/gemini-avatar.svg" });
@@ -85,8 +87,20 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
     const [groupBusy, setGroupBusy] = useState(false);
     const [groupError, setGroupError] = useState("");
     const [roster, setRoster] = useState<Record<string, string>>({});
+    const [canInstall, setCanInstall] = useState(false);
+    const [installed, setInstalled] = useState(false);
+    const [isIos] = useState(() => typeof navigator !== "undefined" && /iphone|ipad|ipod/i.test(navigator.userAgent));
     const t = copy[language];
     const supabase = useMemo(() => createClient(), []);
+
+    // Appel vocal WebRTC : la signalisation passe par les canaux Realtime Supabase.
+    const call = useVoiceCall({
+        supabase,
+        userId: user?.id ?? null,
+        self: { name: profile?.name ?? "", avatar: profile?.avatar ?? null },
+        blockedIds,
+        onAccepted: conversationId => { if (conversationId) { setSelectedId(conversationId); setShowList(false); } }
+    });
 
     const selectedRef = useRef(selectedId);
     selectedRef.current = selectedId;
@@ -139,6 +153,29 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
     }, [language]);
 
     useEffect(() => { document.documentElement.dataset.theme = dark ? "dark" : "light"; window.localStorage.setItem("pulse-theme", dark ? "dark" : "light"); }, [dark]);
+
+    // PWA : service worker minimal + capture de l'invite d'installation (Android/Chrome).
+    const installEventRef = useRef<{ prompt: () => Promise<void> } | null>(null);
+    useEffect(() => {
+        const standalone = window.matchMedia("(display-mode: standalone)").matches || Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+        if (standalone) setInstalled(true);
+        if ("serviceWorker" in navigator) void navigator.serviceWorker.register("/sw.js").catch(() => {});
+        const onPrompt = (event: Event) => {
+            event.preventDefault();
+            installEventRef.current = event as unknown as { prompt: () => Promise<void> };
+            setCanInstall(true);
+        };
+        const onInstalled = () => { installEventRef.current = null; setCanInstall(false); setInstalled(true); };
+        window.addEventListener("beforeinstallprompt", onPrompt);
+        window.addEventListener("appinstalled", onInstalled);
+        return () => { window.removeEventListener("beforeinstallprompt", onPrompt); window.removeEventListener("appinstalled", onInstalled); };
+    }, []);
+
+    async function promptInstall() {
+        const event = installEventRef.current;
+        if (!event) return;
+        try { await event.prompt(); } finally { installEventRef.current = null; setCanInstall(false); }
+    }
 
     // Profil + présence : « en ligne » avec battement régulier, dernière activité à la déconnexion
     useEffect(() => {
@@ -214,6 +251,17 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
         const loaded = rows
             .map(row => row.conversations)
             .filter((conv): conv is ConvShape => conv !== null && conv.type !== "ai");
+        const lastByConv = new Map<string, { content: string; created_at: string; type: string; sender_id: string | null }>();
+        for (const conv of loaded) {
+            const last = (conv.messages ?? []).slice().sort((a, b) => a.created_at.localeCompare(b.created_at)).at(-1);
+            if (last) lastByConv.set(conv.id, last);
+        }
+        // Les conversations avec un nouveau message remontent en haut : tri par dernier message (ou création si vide).
+        loaded.sort((a, b) => {
+            const aKey = lastByConv.get(a.id)?.created_at ?? a.created_at;
+            const bKey = lastByConv.get(b.id)?.created_at ?? b.created_at;
+            return bKey.localeCompare(aKey);
+        });
         // Annuaire local des membres : sert aux noms d'expéditeur dans les groupes et aux notifications.
         const names: Record<string, string> = {};
         for (const conv of loaded) for (const member of conv.conversation_members ?? []) {
@@ -222,7 +270,7 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
         if (Object.keys(names).length > 0) setRoster(current => ({ ...current, ...names }));
         const items: ConversationListItem[] = loaded.map(conv => {
             const other = (conv.conversation_members ?? []).map(member => member.users).find(u => u && u.id !== user.id);
-            const last = (conv.messages ?? []).slice().sort((a, b) => a.created_at.localeCompare(b.created_at)).at(-1);
+            const last = lastByConv.get(conv.id);
             const previewText = last ? (last.type === "audio" ? copy[language].voicePreview : last.content) : "";
             const author = conv.type === "group" && last?.sender_id
                 ? (last.sender_id === user.id ? copy[language].you : names[last.sender_id] ?? copy[language].member)
@@ -794,6 +842,7 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
                         {headerAvatar}
                         <div className="chat-title"><h2>{selectedConversation.name}</h2><p className={typingUser !== null ? "typing" : ""}>{presenceSubtitle}</p></div>
                     </>}
+                {otherId && !convBlocked && <button className="icon-button call-button" type="button" aria-label={t.call} title={t.call} onClick={() => void call.startCall({ id: otherId, name: selectedConversation.name, avatar: selectedConversation.avatar ?? null }, selectedConversation.id)}>📞</button>}
                 {otherId && <div className="chat-menu-wrap">
                     <button className="icon-button" type="button" aria-label={t.block} onClick={() => setMenuOpen(open => !open)}>•••</button>
                     {menuOpen && <>
@@ -815,7 +864,7 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
                 {blockedIds.has(selectedConversation.otherUserId) && <button type="button" onClick={toggleBlock}>{t.unblock}</button>}
             </div> : <MessageInput key={activeConvId ?? "pending"} placeholder={t.write} disabled={isSending} allowAudio={selectedId !== "ai-gemini" && Boolean(activeConvId)} labels={{ record: t.record, stop: t.stop, cancel: t.cancel, unavailable: t.micUnavailable, failed: t.voiceFailed }} onSend={sendMessage} onSendAudio={sendVoiceMessage} onTyping={notifyTyping} />}
         </section>
-        {profileOpen && user && <ProfileModal userId={user.id} email={user.email} name={profile?.name ?? ""} username={profile?.username ?? null} status={profile?.status ?? null} avatar={profile?.avatar ?? null} labels={{ title: t.profile, changePhoto: t.changePhoto, uploading: t.uploading, badType: t.photoBadType, failed: t.photoFailed, logout: t.logout, close: t.close, name: t.name, username: t.username, bio: t.bio, bioPlaceholder: t.bioPlaceholder, save: t.save, saving: t.saving, saved: t.saved, usernameTaken: t.usernameTaken, usernameInvalid: t.usernameInvalid }} onSaved={values => { setProfile(current => current ? { ...current, name: values.name, username: values.username, status: values.status, avatar: values.avatar } : current); void loadConversations(); }} onClose={() => setProfileOpen(false)} onLogout={logout} />}
+        {profileOpen && user && <ProfileModal userId={user.id} email={user.email} name={profile?.name ?? ""} username={profile?.username ?? null} status={profile?.status ?? null} avatar={profile?.avatar ?? null} install={{ canInstall, isIos, installed }} onInstall={() => void promptInstall()} labels={{ title: t.profile, changePhoto: t.changePhoto, uploading: t.uploading, badType: t.photoBadType, failed: t.photoFailed, logout: t.logout, close: t.close, name: t.name, username: t.username, bio: t.bio, bioPlaceholder: t.bioPlaceholder, save: t.save, saving: t.saving, saved: t.saved, usernameTaken: t.usernameTaken, usernameInvalid: t.usernameInvalid, install: t.install, iosInstallHint: t.iosInstallHint, installed: t.installed }} onSaved={values => { setProfile(current => current ? { ...current, name: values.name, username: values.username, status: values.status, avatar: values.avatar } : current); void loadConversations(); }} onClose={() => setProfileOpen(false)} onLogout={logout} />}
         {contactProfile && <ContactProfileModal profile={contactProfile} blocked={blockedIds.has(contactProfile.id)} language={language} labels={{ title: t.contactProfile, bio: t.bio, noBio: t.noBio, online: t.online, offline: t.offline, block: t.block, unblock: t.unblock, close: t.close }} onToggleBlock={() => void toggleBlockFor(contactProfile.id)} onClose={() => setContactProfile(null)} />}
         {newChatOpen && <div className="modal-overlay" onClick={closeNewChat}>
             <div className="modal" onClick={event => event.stopPropagation()}>
@@ -840,5 +889,6 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
                 <button className="modal-close" type="button" onClick={closeNewChat}>{t.close}</button>
             </div>
         </div>}
+        {call.phase !== "idle" && <CallOverlay phase={call.phase} peer={call.peer} endReason={call.endReason} muted={call.muted} startedAt={call.startedAt} remoteStream={call.remoteStream} labels={{ calling: t.calling, ringing: t.ringing, connecting: t.connecting, inCall: t.inCall, declined: t.declined, busy: t.busy, noAnswer: t.noAnswer, ended: t.ended, failed: t.failed, answer: t.answer, decline: t.decline, hangUp: t.hangUp, mute: t.mute, unmute: t.unmute }} onAccept={call.acceptCall} onReject={call.rejectCall} onHangUp={() => void call.hangUp()} onToggleMute={call.toggleMute} />}
     </main>;
 }

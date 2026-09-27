@@ -20,6 +20,9 @@ export type ProfileLabels = {
     saved: string;
     usernameTaken: string;
     usernameInvalid: string;
+    install: string;
+    iosInstallHint: string;
+    installed: string;
 };
 
 export type ProfileValues = { name: string; username: string | null; status: string; avatar: string | null };
@@ -32,6 +35,8 @@ type ProfileModalProps = {
     status: string | null;
     avatar: string | null;
     labels: ProfileLabels;
+    install: { canInstall: boolean; isIos: boolean; installed: boolean };
+    onInstall: () => void;
     onSaved: (values: ProfileValues) => void;
     onClose: () => void;
     onLogout: () => void;
@@ -61,7 +66,7 @@ async function toSquareWebp(file: File): Promise<{ blob: Blob; contentType: stri
     }
 }
 
-export function ProfileModal({ userId, email, name, username, status, avatar, labels, onSaved, onClose, onLogout }: ProfileModalProps) {
+export function ProfileModal({ userId, email, name, username, status, avatar, labels, install, onInstall, onSaved, onClose, onLogout }: ProfileModalProps) {
     const supabase = useMemo(() => createClient(), []);
     const fileRef = useRef<HTMLInputElement | null>(null);
     const [preview, setPreview] = useState(avatar || "");
@@ -148,6 +153,11 @@ export function ProfileModal({ userId, email, name, username, status, avatar, la
             </form>
             {error && <span className="error">{error}</span>}
             {saved && <span className="profile-saved">{labels.saved}</span>}
+            {install.installed
+                ? <small className="profile-installed">{labels.installed}</small>
+                : install.canInstall
+                    ? <button className="secondary install-button" type="button" onClick={onInstall}>{labels.install}</button>
+                    : install.isIos ? <small className="profile-ios-hint">{labels.iosInstallHint}</small> : null}
             <button className="danger-button" type="button" onClick={onLogout}>{labels.logout}</button>
             <button className="modal-close" type="button" onClick={onClose}>{labels.close}</button>
         </div>
