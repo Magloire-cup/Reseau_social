@@ -192,9 +192,22 @@ button.chat-identity:hover { background: var(--hover); }
 .call-status.under-grid { margin-top: 4px; }
 .call-notice { margin: 0; color: var(--muted); font-size: .78rem; }
 .auth-install { margin: 14px 0 0; text-align: center; font-size: .82rem; }
-.bubble-reply { display: grid; place-items: center; flex: 0 0 auto; width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); color: var(--muted); font-size: .95rem; line-height: 1; opacity: 0; transition: opacity .15s ease; }
-.message-row:hover .bubble-reply, .bubble-reply:focus-visible { opacity: 1; }
-.outgoing .bubble-reply { order: 2; }
+.bubble-wrap { position: relative; display: flex; flex-direction: column; align-items: flex-start; max-width: min(620px, 82%); }
+.outgoing .bubble-wrap { align-items: flex-end; }
+.bubble-wrap .bubble { max-width: 100%; }
+.bubble-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 3px; opacity: 0; transition: opacity .15s ease; }
+.message-row:hover .bubble-actions, .message-row:focus-within .bubble-actions { opacity: 1; }
+.outgoing .bubble-actions { order: 2; }
+.bubble-action { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); color: var(--muted); font-size: .88rem; line-height: 1; }
+.bubble-action:hover { border-color: var(--green); color: var(--green); }
+.bubble-action.active { border-color: var(--green); background: var(--hover); color: var(--green); }
+.bubble-action.remove:hover { border-color: #d64545; color: #d64545; }
+.bubble-deleted { color: var(--muted); font-style: italic; }
+.reaction-chips { display: flex; gap: 3px; margin-top: 3px; }
+.reaction-chip { display: flex; align-items: center; gap: 3px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-size: .82rem; line-height: 1.35; box-shadow: 0 1px 2px rgba(0, 0, 0, .08); }
+.reaction-chip.mine { border-color: var(--green); background: var(--hover); }
+.reaction-chip:disabled { cursor: default; }
+.reaction-count { color: var(--muted); font-size: .68rem; font-weight: 800; }
 .bubble-quote { display: block; width: 100%; margin: 0 0 6px; padding: 5px 9px; border: 0; border-left: 3px solid var(--green); border-radius: 6px; background: rgba(66, 90, 90, .1); color: var(--muted); text-align: left; white-space: normal; }
 [data-theme="dark"] .bubble-quote { background: rgba(255, 255, 255, .07); }
 .outgoing .bubble-quote { border-left-color: var(--green); background: rgba(0, 0, 0, .07); }
@@ -207,7 +220,14 @@ button.chat-identity:hover { background: var(--hover); }
 .composer-reply-title { display: block; color: var(--green); font-size: .74rem; font-weight: 800; }
 .composer-reply-text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: .8rem; }
 .composer-reply .icon-button { flex: 0 0 auto; }
-@media (hover: none) { .bubble-reply { opacity: 1; } }
+.chat-error { padding: 8px 18px; border-top: 1px solid var(--line); background: var(--surface); color: #bd4545; font-size: .8rem; }
+.composer-react { display: flex; align-items: center; gap: 4px; padding: 8px 18px; border-top: 1px solid var(--line); background: var(--surface); }
+.composer-react-title { margin-right: 6px; color: var(--muted); font-size: .78rem; font-weight: 700; }
+.composer-react .icon-button { margin-left: auto; }
+.react-emoji { width: 34px; height: 34px; border: 1px solid transparent; border-radius: 50%; background: transparent; font-size: 1.05rem; line-height: 1; }
+.react-emoji:hover { background: var(--hover); }
+.react-emoji.active { border-color: var(--green); background: var(--hover); }
+@media (hover: none) { .bubble-actions { opacity: 1; } }
 .auth-install a { color: var(--green); font-weight: 700; text-decoration: none; }
 .auth-install a:hover { text-decoration: underline; }
 .profile-install-help { align-self: start; color: var(--green); font-size: .8rem; font-weight: 700; text-decoration: none; }
