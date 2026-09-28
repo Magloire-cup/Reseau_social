@@ -97,6 +97,7 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
     const isIos = platform === "ios";
     const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
     const [reactingToId, setReactingToId] = useState<string | null>(null);
+    const [actionsForId, setActionsForId] = useState<string | null>(null);
     const [actionError, setActionError] = useState("");
     const [highlightId, setHighlightId] = useState<string | null>(null);
     const [sidebarTab, setSidebarTab] = useState<"chats" | "calls">("chats");
@@ -425,6 +426,7 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
         setMessages([]);
         setReplyTo(null);
         setReactingToId(null);
+        setActionsForId(null);
         setActionError("");
         setHighlightId(null);
         (async () => {
@@ -684,6 +686,7 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
     }
 
     function startReply(message: ChatMessage) {
+        setActionsForId(null);
         setReplyTo({ id: message.id, name: authorLabel(message) || selectedConversation.name, content: message.type === "audio" ? t.voicePreview : message.content, isAudio: message.type === "audio" });
         window.setTimeout(() => document.querySelector<HTMLInputElement>(".composer input")?.focus(), 0);
     }
@@ -709,6 +712,7 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
         const mine = (message.reactions ?? []).find(reaction => reaction.userId === user.id)?.emoji ?? null;
         const next = mine === emoji ? null : emoji;
         setReactingToId(null);
+        setActionsForId(null);
         applyReactionEvent(message.id, user.id, next);
         const request = supabase.from("message_reactions");
         const { error } = next === null
@@ -724,6 +728,7 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
     async function removeMessage(message: ChatMessage) {
         if (!supabase || !user || message.role !== "user" || message.deletedAt) return;
         setReactingToId(null);
+        setActionsForId(null);
         const { error } = await supabase.rpc("delete_message", { msg_id: message.id });
         if (error) { flashActionError(t.removeFailed); return; }
         setReplyTo(current => current && current.id === message.id ? null : current);
@@ -1025,10 +1030,10 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
                     </>}
                 </div>}
             </header>
-            <div className="message-list" ref={listRef} onScroll={handleListScroll}>
+            <div className="message-list" ref={listRef} onScroll={handleListScroll} onClick={event => { if (event.target === event.currentTarget) setActionsForId(null); }}>
                 {loadingOlder && <div className="list-status"><span className="spinner" aria-hidden="true" />{t.loadingOlder}</div>}
                 {!loadingOlder && !hasOlder && hasHistory && <div className="list-status">{t.historyStart}</div>}
-                {messages.map(message => <MessageBubble key={message.id} messageId={message.id} content={message.content} outgoing={message.role === "user"} createdAt={message.createdAt} status={message.status} isAudio={message.type === "audio"} audioUrl={message.audioUrl} audioPath={message.audioPath} onResignAudio={resignAudioUrl} audioFallback={t.voiceUnavailable} senderName={isGroup && message.role !== "user" ? (message.senderId ? roster[message.senderId] ?? t.member : undefined) : undefined} replyId={message.replyToId ?? null} replyTo={replyPreview(message)} highlight={highlightId === message.id} canReply={canReplyInChat} onReply={() => startReply(message)} onQuoteClick={jumpToMessage} deleted={Boolean(message.deletedAt)} reactions={message.reactions} selfId={user.id} canReact={canReplyInChat} reacting={reactingToId === message.id} onReact={() => setReactingToId(current => current === message.id ? null : message.id)} canDelete={message.role === "user" && selectedId !== "ai-gemini"} onDelete={() => void removeMessage(message)} onToggleReaction={emoji => void toggleReaction(message, emoji)} labels={{ reply: t.reply, unavailable: t.replyUnavailable, voice: t.voicePreview, react: t.react, remove: t.remove, deleted: t.deleted }} />)}
+                {messages.map(message => <MessageBubble key={message.id} messageId={message.id} content={message.content} outgoing={message.role === "user"} createdAt={message.createdAt} status={message.status} isAudio={message.type === "audio"} audioUrl={message.audioUrl} audioPath={message.audioPath} onResignAudio={resignAudioUrl} audioFallback={t.voiceUnavailable} senderName={isGroup && message.role !== "user" ? (message.senderId ? roster[message.senderId] ?? t.member : undefined) : undefined} replyId={message.replyToId ?? null} replyTo={replyPreview(message)} highlight={highlightId === message.id} canReply={canReplyInChat} onReply={() => startReply(message)} onQuoteClick={jumpToMessage} deleted={Boolean(message.deletedAt)} reactions={message.reactions} selfId={user.id} canReact={canReplyInChat} reacting={reactingToId === message.id} onReact={() => setReactingToId(current => current === message.id ? null : message.id)} canDelete={message.role === "user" && selectedId !== "ai-gemini"} onDelete={() => void removeMessage(message)} onToggleReaction={emoji => void toggleReaction(message, emoji)} actionsOpen={actionsForId === message.id} onToggleActions={() => setActionsForId(current => current === message.id ? null : message.id)} labels={{ reply: t.reply, unavailable: t.replyUnavailable, voice: t.voicePreview, react: t.react, remove: t.remove, deleted: t.deleted }} />)}
                 {isSending && selectedId === "ai-gemini" && <div className="message-row"><div className="bubble">{t.typing}</div></div>}
             </div>
             {convBlocked && selectedConversation.otherUserId ? <div className="blocked-banner">

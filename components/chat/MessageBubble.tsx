@@ -1,6 +1,6 @@
 "use client";
 
-import { TouchEvent, useEffect, useMemo, useRef, useState } from "react";
+import { MouseEvent, TouchEvent, useEffect, useMemo, useRef, useState } from "react";
 
 export type ReplyPreview = { name?: string; content: string; isAudio: boolean };
 export type MessageReaction = { emoji: string; userId: string };
@@ -32,6 +32,8 @@ type MessageBubbleProps = {
     canDelete?: boolean;
     onDelete?: () => void;
     onToggleReaction?: (emoji: string) => void;
+    actionsOpen?: boolean;
+    onToggleActions?: () => void;
     labels?: { reply: string; unavailable: string; voice: string; react: string; remove: string; deleted: string };
 };
 
@@ -41,7 +43,7 @@ const NO_REACTIONS: MessageReaction[] = [];
 const SWIPE_TRIGGER = 60;
 const SWIPE_MAX_VERTICAL = 48;
 
-export function MessageBubble({ messageId, content, outgoing = false, createdAt, status, isAudio = false, audioUrl, audioPath, onResignAudio, audioFallback, senderName, replyId = null, replyTo = null, highlight = false, canReply = false, onReply, onQuoteClick, deleted = false, reactions = NO_REACTIONS, selfId = null, canReact = false, reacting = false, onReact, canDelete = false, onDelete, onToggleReaction, labels }: MessageBubbleProps) {
+export function MessageBubble({ messageId, content, outgoing = false, createdAt, status, isAudio = false, audioUrl, audioPath, onResignAudio, audioFallback, senderName, replyId = null, replyTo = null, highlight = false, canReply = false, onReply, onQuoteClick, deleted = false, reactions = NO_REACTIONS, selfId = null, canReact = false, reacting = false, onReact, canDelete = false, onDelete, onToggleReaction, actionsOpen = false, onToggleActions, labels }: MessageBubbleProps) {
     const time = new Date(createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     const [src, setSrc] = useState(audioUrl || "");
     const [failed, setFailed] = useState(false);
@@ -102,8 +104,16 @@ export function MessageBubble({ messageId, content, outgoing = false, createdAt,
     const quoteText = replyTo ? (replyTo.isAudio ? labels?.voice ?? "" : replyTo.content) : labels?.unavailable ?? "";
     const hasActions = !deleted && ((canReply && Boolean(onReply)) || (canReact && Boolean(onReact)) || (canDelete && Boolean(onDelete)));
 
-    return <div id={`message-${messageId}`} className={`message-row ${outgoing ? "outgoing" : ""} ${highlight ? "highlight" : ""}`.trim()} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-        {hasActions && <div className="bubble-actions">
+    // Un clic sur le message révèle ses actions ; un clic sur un contrôle interne
+    // (lecteur audio, citation, pastille de réaction) garde son effet propre.
+    function handleRowClick(event: MouseEvent<HTMLDivElement>) {
+        if (!hasActions || !onToggleActions) return;
+        if ((event.target as HTMLElement).closest("audio, button, a, input, label")) return;
+        onToggleActions();
+    }
+
+    return <div id={`message-${messageId}`} className={`message-row ${outgoing ? "outgoing" : ""} ${highlight ? "highlight" : ""}`.trim()} onClick={handleRowClick} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+        {hasActions && <div className={`bubble-actions${actionsOpen ? " open" : ""}`}>
             {canReply && onReply && <button className="bubble-action" type="button" aria-label={labels?.reply} title={labels?.reply} onClick={onReply}>↩</button>}
             {canReact && onReact && <button className={`bubble-action${reacting ? " active" : ""}`} type="button" aria-label={labels?.react} title={labels?.react} onClick={onReact}>😊</button>}
             {canDelete && onDelete && <button className="bubble-action remove" type="button" aria-label={labels?.remove} title={labels?.remove} onClick={onDelete}>🗑</button>}

@@ -199,8 +199,11 @@ button.chat-identity:hover { background: var(--hover); }
 .bubble-wrap { position: relative; display: flex; flex-direction: column; align-items: flex-start; min-width: 0; max-width: min(620px, 82%); }
 .outgoing .bubble-wrap { align-items: flex-end; }
 .bubble-wrap .bubble { max-width: 100%; }
-.bubble-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 3px; opacity: 0; transition: opacity .15s ease; }
-.message-row:hover .bubble-actions, .message-row:focus-within .bubble-actions { opacity: 1; }
+/* Les actions n'apparaissent qu'au clic sur le message, ou au clavier (:focus-visible,
+   pas :focus-within, sinon un simple clic sur une pastille les rouvrirait). */
+.bubble-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 3px; opacity: 0; pointer-events: none; transition: opacity .15s ease; }
+.bubble-actions.open { opacity: 1; pointer-events: auto; }
+.message-row:has(:focus-visible) .bubble-actions { opacity: 1; pointer-events: auto; }
 .outgoing .bubble-actions { order: 2; }
 .bubble-action { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); color: var(--muted); font-size: .88rem; line-height: 1; }
 .bubble-action:hover { border-color: var(--green); color: var(--green); }
@@ -231,7 +234,6 @@ button.chat-identity:hover { background: var(--hover); }
 .react-emoji { width: 34px; height: 34px; border: 1px solid transparent; border-radius: 50%; background: transparent; font-size: 1.05rem; line-height: 1; }
 .react-emoji:hover { background: var(--hover); }
 .react-emoji.active { border-color: var(--green); background: var(--hover); }
-@media (hover: none) { .bubble-actions { opacity: 1; } }
 .auth-install a { color: var(--green); font-weight: 700; text-decoration: none; }
 .auth-install a:hover { text-decoration: underline; }
 .profile-install-help { align-self: start; color: var(--green); font-size: .8rem; font-weight: 700; text-decoration: none; }
