@@ -66,10 +66,21 @@ button { cursor: pointer; }
 .composer input { flex: 1; min-width: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; outline: 0; }
 .send { width: 44px; border: 0; border-radius: 10px; background: var(--green); color: white; }
 .empty { display: grid; place-items: center; align-content: center; height: 100%; padding: 24px; text-align: center; color: var(--muted); }
-.auth { display: grid; place-items: center; min-height: 100vh; padding: 20px; }
-.auth-card { width: min(430px, 100%); padding: 30px; border-radius: 18px; background: var(--surface); box-shadow: var(--shadow); }
-.auth-card h1 { margin: 0 0 8px; }
+.auth { display: grid; place-items: center; min-height: 100dvh; padding: 20px; }
+.auth-card { width: min(430px, 100%); min-width: 0; padding: 30px; border-radius: 18px; background: var(--surface); box-shadow: var(--shadow); }
+.auth-card h1 { margin: 0 0 8px; font-size: clamp(1.4rem, 6vw, 1.9rem); }
 .auth-card p { color: var(--muted); }
+@media (min-width: 900px) {
+  .auth-card:has(.auth-copy) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(330px, 430px); align-items: center; column-gap: 42px; width: min(980px, 100%); padding: 36px 42px; }
+  .auth-copy { display: grid; gap: 14px; align-content: center; }
+  .auth-copy p, .auth-copy h1 { margin: 0; }
+  .auth-copy h1 { font-size: clamp(1.8rem, 2.4vw, 2.3rem); }
+  .auth-copy .top-actions { margin-top: 4px; }
+  .auth-side { display: grid; align-content: center; }
+  .auth-side .auth-tabs { margin-top: 0; }
+  .auth-side .auth-clerk { margin-top: 14px; }
+  .auth-side .auth-install { margin-top: 10px; }
+}
 .auth-form { display: grid; gap: 13px; margin-top: 22px; }
 .auth-form label { display: grid; gap: 6px; font-size: .8rem; font-weight: 700; }
 .auth-form input { padding: 12px; border: 1px solid var(--line); border-radius: 9px; }
@@ -196,7 +207,8 @@ button.chat-identity:hover { background: var(--hover); }
 .call-status.under-grid { margin-top: 4px; }
 .call-notice { margin: 0; color: var(--muted); font-size: .78rem; }
 .auth-install { margin: 14px 0 0; text-align: center; font-size: .82rem; }
-.auth-clerk { margin-top: 18px; }
+.auth-clerk { margin-top: 18px; min-width: 0; }
+.auth-clerk .cl-rootBox, .auth-clerk .cl-cardBox, .auth-clerk .cl-card { width: 100% !important; max-width: 100% !important; }
 .bubble-wrap { position: relative; display: flex; flex-direction: column; align-items: flex-start; min-width: 0; max-width: min(620px, 82%); }
 .outgoing .bubble-wrap { align-items: flex-end; }
 .bubble-wrap .bubble { max-width: 100%; }
@@ -321,6 +333,13 @@ button.chat-identity:hover { background: var(--hover); }
   .call-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
   .call-btn { width: 46px; height: 46px; }
   .call-actions { margin-top: 4px; }
+  .auth { padding: 10px; }
+  .auth-card { padding: 14px 18px; border-radius: 14px; }
+  .auth-card h1 { margin: 0 0 4px; font-size: 1.25rem; }
+  .auth-card .eyebrow, .auth-card h1 + p { display: none; }
+  .auth-tabs { margin-top: 10px; }
+  .auth-clerk { margin-top: 10px; }
+  .auth-install { margin-top: 8px; }
 }
 @media (hover: none) {
   .icon-button { min-width: 44px; min-height: 44px; }
