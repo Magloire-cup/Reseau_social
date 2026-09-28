@@ -28,7 +28,47 @@ const ROOM_TIMEOUT_MS = 10000;
 const RING_TIMEOUT_MS = 40000;
 const CONNECT_TIMEOUT_MS = 35000;
 const TILE_LINGER_MS = 5000;
-const ICE_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
+const OFFER_RESEND_MS = 4000;
+const MAX_OFFER_RESENDS = 2;
+const MAX_ICE_RESTARTS = 2;
+const DISCONNECTED_GRACE_MS = 6000;
+const INVITE_RETRY_MS = 3000;
+const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
+    { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
+    { urls: "stun:stun.cloudflare.com:3478" }
+];
+
+let iceServersPromise: Promise<RTCIceServer[]> | null = null;
+
+// Le serveur ajoute les relais TURN configurés (variables d'environnement) : sans relais,
+// deux appareils derrière un NAT strict (CGNAT mobile) ne peuvent pas s'appeler. En cas
+// d'échec on garde les STUN pour ne pas bloquer l'appel.
+async function fetchIceServers(): Promise<{ list: RTCIceServer[]; cacheable: boolean }> {
+    try {
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => controller.abort(), 4000);
+        const response = await fetch("/api/ice", { signal: controller.signal });
+        window.clearTimeout(timer);
+        if (!response.ok) return { list: DEFAULT_ICE_SERVERS, cacheable: false };
+        const data = await response.json() as { iceServers?: RTCIceServer[] };
+        const list = Array.isArray(data.iceServers) ? data.iceServers.filter(entry => entry && entry.urls) : [];
+        return { list: list.length > 0 ? list : DEFAULT_ICE_SERVERS, cacheable: true };
+    } catch {
+        return { list: DEFAULT_ICE_SERVERS, cacheable: false };
+    }
+}
+
+function loadIceServers(): Promise<RTCIceServer[]> {
+    if (!iceServersPromise) {
+        // Un échec (401 avant connexion, réseau) n'est pas mémorisé : le prochain appel
+        // retentera avec la session active, sinon les relais TURN seraient perdus à vie.
+        iceServersPromise = fetchIceServers().then(result => {
+            if (!result.cacheable) iceServersPromise = null;
+            return result.list;
+        });
+    }
+    return iceServersPromise;
+}
 
 type PresenceMeta = { userId?: string; name?: string; avatar?: string | null };
 type PeerEntry = { pc: RTCPeerConnection; ice: RTCIceCandidateInit[]; remoteSet: boolean };
@@ -85,6 +125,9 @@ export function useVoiceCall({ supabase, userId, self, blockedIds, onAccepted }:
     const pcsRef = useRef<Map<string, PeerEntry>>(new Map());
     const orphanIceRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
     const presenceMetaRef = useRef<Map<string, PresenceMeta>>(new Map());
+    const iceServersRef = useRef<RTCIceServer[]>(DEFAULT_ICE_SERVERS);
+    const iceRestartRef = useRef<Map<string, number>>(new Map());
+    const disconnectTimerRef = useRef<Map<string, number>>(new Map());
     const localStreamRef = useRef<MediaStream | null>(null);
     const channelRef = useRef<RealtimeChannel | null>(null);
     const ringTimeoutRef = useRef<number | null>(null);
@@ -253,7 +296,7 @@ export function useVoiceCall({ supabase, userId, self, blockedIds, onAccepted }:
     function createPeer(peerId: string): PeerEntry {
         const existing = pcsRef.current.get(peerId);
         if (existing) return existing;
-        const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+        const pc = new RTCPeerConnection({ iceServers: iceServersRef.current });
         const entry: PeerEntry = { pc, ice: [], remoteSet: false };
         pcsRef.current.set(peerId, entry);
         const stream = localStreamRef.current;
@@ -269,11 +312,14 @@ export function useVoiceCall({ supabase, userId, self, blockedIds, onAccepted }:
         pc.onconnectionstatechange = () => {
             const state = pc.connectionState;
             if (state === "connected") {
+                clearDisconnectTimer(peerId);
+                iceRestartRef.current.delete(peerId);
                 upsertTile(peerId, { connection: "active" });
                 markActive();
+            } else if (state === "disconnected") {
+                scheduleDisconnectRecovery(peerId);
             } else if (state === "failed") {
-                dropPeer(peerId);
-                afterPeerGone();
+                recoverConnection(peerId);
             }
         };
         const orphan = orphanIceRef.current.get(peerId);
@@ -285,6 +331,8 @@ export function useVoiceCall({ supabase, userId, self, blockedIds, onAccepted }:
     }
 
     function dropPeer(peerId: string) {
+        clearDisconnectTimer(peerId);
+        iceRestartRef.current.delete(peerId);
         const entry = pcsRef.current.get(peerId);
         if (!entry) return;
         pcsRef.current.delete(peerId);
@@ -304,6 +352,74 @@ export function useVoiceCall({ supabase, userId, self, blockedIds, onAccepted }:
             if (isCallerRef.current) dbOwnParticipant("left");
             finishRef.current("ended");
         }
+    }
+
+    function clearDisconnectTimer(peerId: string) {
+        const timer = disconnectTimerRef.current.get(peerId);
+        if (timer !== undefined) {
+            window.clearTimeout(timer);
+            disconnectTimerRef.current.delete(peerId);
+        }
+    }
+
+    // « disconnected » est souvent passager (changement de réseau, veille) : on laisse une
+    // courte grâce avant de relancer l'ICE plutôt que de couper au premier hoquet.
+    function scheduleDisconnectRecovery(peerId: string) {
+        if (disconnectTimerRef.current.has(peerId)) return;
+        const timer = window.setTimeout(() => {
+            disconnectTimerRef.current.delete(peerId);
+            const entry = pcsRef.current.get(peerId);
+            if (!entry || entry.pc.connectionState === "connected") return;
+            recoverConnection(peerId);
+        }, DISCONNECTED_GRACE_MS);
+        disconnectTimerRef.current.set(peerId, timer);
+    }
+
+    // Relance ICE (nouveaux identifiants + nouvelle offre) avant d'abandonner le pair.
+    function recoverConnection(peerId: string) {
+        clearDisconnectTimer(peerId);
+        if (phaseRef.current !== "connecting" && phaseRef.current !== "active") return;
+        const attempts = iceRestartRef.current.get(peerId) ?? 0;
+        if (attempts < MAX_ICE_RESTARTS) {
+            iceRestartRef.current.set(peerId, attempts + 1);
+            forceNegotiate(peerId);
+            return;
+        }
+        dropPeer(peerId);
+        afterPeerGone();
+    }
+
+    function forceNegotiate(peerId: string) {
+        const entry = pcsRef.current.get(peerId);
+        if (!entry || entry.pc.signalingState === "have-local-offer") return;
+        const { pc } = entry;
+        // Décalage aléatoire pour que les deux côtés ne relancent pas ICE au même instant.
+        window.setTimeout(() => {
+            void (async () => {
+                try {
+                    const offer = await pc.createOffer({ iceRestart: true });
+                    await pc.setLocalDescription(offer);
+                    entry.remoteSet = false;
+                    sendRoom("offer", { from: userIdRef.current, to: peerId, sdp: pc.localDescription });
+                    scheduleOfferResend(peerId, 1);
+                } catch { /* le watchdog tranchera */ }
+            })();
+        }, 150 + Math.floor(Math.random() * 250));
+    }
+
+    // Offre perdue (socket du pair en reconnexion) : on la renvoie telle quelle, sans rejouer
+    // setLocalDescription — les candidats ICE déjà émis restent valides.
+    function scheduleOfferResend(peerId: string, attempt: number) {
+        window.setTimeout(() => {
+            const entry = pcsRef.current.get(peerId);
+            if (!entry || entry.remoteSet || entry.pc.signalingState !== "have-local-offer") return;
+            const current = phaseRef.current;
+            if (current !== "connecting" && current !== "active" && current !== "outgoing") return;
+            const sdp = entry.pc.localDescription;
+            if (!sdp) return;
+            sendRoom("offer", { from: userIdRef.current, to: peerId, sdp });
+            if (attempt < MAX_OFFER_RESENDS) scheduleOfferResend(peerId, attempt + 1);
+        }, OFFER_RESEND_MS);
     }
 
     function markActive() {
@@ -404,6 +520,9 @@ export function useVoiceCall({ supabase, userId, self, blockedIds, onAccepted }:
         }
         pcsRef.current.clear();
         orphanIceRef.current.clear();
+        iceRestartRef.current.clear();
+        for (const timer of disconnectTimerRef.current.values()) window.clearTimeout(timer);
+        disconnectTimerRef.current.clear();
         if (localStreamRef.current) {
             for (const track of localStreamRef.current.getTracks()) track.stop();
             localStreamRef.current = null;
@@ -456,6 +575,7 @@ export function useVoiceCall({ supabase, userId, self, blockedIds, onAccepted }:
                 const offer = await entry.pc.createOffer();
                 await entry.pc.setLocalDescription(offer);
                 sendRoom("offer", { from: userIdRef.current, to: peerId, sdp: entry.pc.localDescription });
+                scheduleOfferResend(peerId, 1);
             } catch { /* le prochain sync reprendra la négociation */ }
         })();
     }
@@ -696,6 +816,7 @@ export function useVoiceCall({ supabase, userId, self, blockedIds, onAccepted }:
         cameraOnRef.current = false;
         setVideoFailed(false);
         goPhase("outgoing");
+        iceServersRef.current = await loadIceServers();
         const stream = await ensureMedia(callKind);
         if (!stream) {
             dbOwnParticipant("left");
@@ -712,6 +833,17 @@ export function useVoiceCall({ supabase, userId, self, blockedIds, onAccepted }:
         dbCreateCall(callId, targetConversationId, callKind, targets);
         const members: CallPeer[] = [{ id: userIdRef.current, name: selfRef.current.name, avatar: selfRef.current.avatar ?? null }, ...targets];
         for (const target of targets) void sendRingInvite(callId, targetConversationId, callKind, callTitle, group, members, target.id);
+        // Diffusion « au plus une fois » : si la socket du destinataire se reconnecte, la
+        // sonnerie est perdue. Deux renvois couvrent ce trou sans sonner en double côté client.
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            window.setTimeout(() => {
+                if (phaseRef.current !== "outgoing" || callIdRef.current !== callId) return;
+                for (const target of targets) {
+                    if (declinedRef.current.has(target.id)) continue;
+                    void sendRingInvite(callId, targetConversationId, callKind, callTitle, group, members, target.id);
+                }
+            }, INVITE_RETRY_MS * attempt);
+        }
         startTone(440, 1000, 2000, 0.05);
         clearRingTimeout();
         ringTimeoutRef.current = window.setTimeout(() => {
@@ -731,6 +863,7 @@ export function useVoiceCall({ supabase, userId, self, blockedIds, onAccepted }:
         stopTone();
         goPhase("connecting");
         startWatchdog();
+        iceServersRef.current = await loadIceServers();
         const stream = await ensureMedia(kindRef.current);
         if (!stream) {
             dbOwnParticipant("left");
@@ -788,6 +921,9 @@ export function useVoiceCall({ supabase, userId, self, blockedIds, onAccepted }:
         const data = payload as InvitePayload | null;
         const callerId = data?.caller?.id;
         if (!data?.callId || !callerId || callerId === userIdRef.current) return;
+        // Sonnerie renvoyée par précaution (l'envoi « au plus une fois » a pu se perdre) :
+        // une seule sonnerie par appel.
+        if (data.callId === callIdRef.current && phaseRef.current !== "idle") return;
         if (blockedRef.current.has(callerId)) {
             void sendToCallRoom(data.callId, "reject", { from: userIdRef.current, reason: "declined" });
             return;
@@ -823,8 +959,19 @@ export function useVoiceCall({ supabase, userId, self, blockedIds, onAccepted }:
         setVideoFailed(false);
         pendingInviteRef.current = { callId: data.callId, conversationId: data.conversationId ?? null };
         channelRef.current = await joinCallRoom(data.callId);
-        if (!channelRef.current) return;
-        if (phaseRef.current !== "idle" && phaseRef.current !== "ended") return;
+        if (!channelRef.current) {
+            pendingInviteRef.current = null;
+            callIdRef.current = null;
+            setParticipants([]);
+            return;
+        }
+        if (phaseRef.current !== "idle" && phaseRef.current !== "ended") {
+            void sendToCallRoom(data.callId, "reject", { from: userIdRef.current, reason: "busy" });
+            pendingInviteRef.current = null;
+            callIdRef.current = null;
+            setParticipants([]);
+            return;
+        }
         goPhase("incoming");
         startTone(520, 400, 200, 0.1);
         clearRingTimeout();
@@ -849,6 +996,12 @@ export function useVoiceCall({ supabase, userId, self, blockedIds, onAccepted }:
             .subscribe();
         return () => { void supabase.removeChannel(channel); };
     }, [supabase, userId]);
+
+    // Préchargement : les identifiants TURN doivent être prêts avant la première offre.
+    // Relancé à la connexion, car la première requête part souvent sans session (écran de login).
+    useEffect(() => {
+        void loadIceServers().then(list => { iceServersRef.current = list; });
+    }, [userId]);
 
     useEffect(() => () => {
         cleanupRef.current();

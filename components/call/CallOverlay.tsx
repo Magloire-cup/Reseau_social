@@ -60,7 +60,19 @@ function StreamVideo({ stream, muted, className }: { stream: MediaStream | null;
         const video = ref.current;
         if (!video) return;
         if (video.srcObject !== stream) video.srcObject = stream;
-        if (stream) void video.play().catch(() => {});
+        if (!stream) return;
+        // iOS/Safari peut refuser l'autoplay tant qu'aucun geste n'a eu lieu dans la page :
+        // on retente à l'arrivée des métadonnées puis au premier geste.
+        const tryPlay = () => { void video.play().catch(() => {}); };
+        tryPlay();
+        video.addEventListener("loadedmetadata", tryPlay);
+        document.addEventListener("pointerdown", tryPlay);
+        document.addEventListener("keydown", tryPlay);
+        return () => {
+            video.removeEventListener("loadedmetadata", tryPlay);
+            document.removeEventListener("pointerdown", tryPlay);
+            document.removeEventListener("keydown", tryPlay);
+        };
     }, [stream]);
     return <video ref={ref} className={className} autoPlay playsInline muted={muted} />;
 }
