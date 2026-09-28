@@ -1,9 +1,10 @@
 -- Répondre à un message : chaque message peut citer le message auquel il répond.
 -- Si la source est supprimée, la réponse survit sans citation.
+-- if not exists : le fichier est rejouable (l'aperçu Supabase rejoue les migrations).
 alter table public.messages
-    add column reply_to_id uuid references public.messages (id) on delete set null;
+    add column if not exists reply_to_id uuid references public.messages (id) on delete set null;
 
-create index messages_reply_to_id_idx on public.messages (reply_to_id);
+create index if not exists messages_reply_to_id_idx on public.messages (reply_to_id);
 
 -- Les vocaux peuvent aussi répondre à un message : la RPC accepte le message cité.
 -- La 6-args est supprimée pour éviter une surcharge qui hériterait du EXECUTE PUBLIC par défaut.

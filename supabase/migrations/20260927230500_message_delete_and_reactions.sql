@@ -2,11 +2,12 @@
 
 -- Suppression logique : le contenu est effacé et deleted_at marque le message.
 -- Les autres membres voient un message « supprimé » au lieu du contenu.
+-- if not exists : le fichier est rejouable (l'aperçu Supabase rejoue les migrations).
 alter table public.messages
-    add column deleted_at timestamptz;
+    add column if not exists deleted_at timestamptz;
 
 -- Une seule réaction par utilisateur et par message (la clé composite le garantit).
-create table public.message_reactions (
+create table if not exists public.message_reactions (
     message_id uuid not null references public.messages (id) on delete cascade,
     user_id uuid not null references public.users (id) on delete cascade,
     emoji text not null check (char_length(emoji) between 1 and 8),
@@ -14,11 +15,12 @@ create table public.message_reactions (
     primary key (message_id, user_id)
 );
 
-create index message_reactions_message_id_idx on public.message_reactions (message_id);
+create index if not exists message_reactions_message_id_idx on public.message_reactions (message_id);
 
 alter table public.message_reactions enable row level security;
 
 -- Visible par les membres de la conversation du message.
+drop policy if exists "message_reactions_select_member" on public.message_reactions;
 create policy "message_reactions_select_member" on public.message_reactions
     for select to authenticated
     using (
@@ -30,6 +32,7 @@ create policy "message_reactions_select_member" on public.message_reactions
     );
 
 -- Chacun pose sa propre réaction, dans une de ses conversations, sur un message non supprimé.
+drop policy if exists "message_reactions_insert_own" on public.message_reactions;
 create policy "message_reactions_insert_own" on public.message_reactions
     for insert to authenticated
     with check (
@@ -42,6 +45,7 @@ create policy "message_reactions_insert_own" on public.message_reactions
         )
     );
 
+drop policy if exists "message_reactions_update_own" on public.message_reactions;
 create policy "message_reactions_update_own" on public.message_reactions
     for update to authenticated
     using ((select auth.uid()) = user_id)
@@ -49,6 +53,7 @@ create policy "message_reactions_update_own" on public.message_reactions
 
 -- Chacun retire sa réaction ; l'auteur du message peut aussi nettoyer celles des autres
 -- quand il retire son message (utilisé par la RPC delete_message).
+drop policy if exists "message_reactions_delete_own" on public.message_reactions;
 create policy "message_reactions_delete_own" on public.message_reactions
     for delete to authenticated
     using (
@@ -61,6 +66,7 @@ create policy "message_reactions_delete_own" on public.message_reactions
     );
 
 -- L'auteur du message peut supprimer les fichiers attachés (vocaux) de ses messages.
+drop policy if exists "attachments_delete_sender" on public.attachments;
 create policy "attachments_delete_sender" on public.attachments
     for delete to authenticated
     using (
@@ -100,4 +106,16 @@ grant select, insert, update, delete on public.message_reactions to authenticate
 revoke all on public.message_reactions from anon;
 
 -- Realtime : les réactions et les suppressions se propagent en direct.
-alter publication supabase_realtime add table public.message_reactions;
+-- Garde : add table échoue si la table est déjà membre de la publication.
+do $$
+begin
+    if not exists (
+        select 1 from pg_publication_tables
+        where pubname = 'supabase_realtime'
+          and schemaname = 'public'
+          and tablename = 'message_reactions'
+    ) then
+        alter publication supabase_realtime add table public.message_reactions;
+    end if;
+end
+$$;
