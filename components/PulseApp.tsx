@@ -1,9 +1,10 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { SignIn, SignUp, useAuth, useClerk, useUser } from "@clerk/nextjs";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { askGemini, type GeminiMessage } from "../lib/gemini";
-import { createClient } from "../lib/supabase/client";
+import { createClient, setSupabaseTokenProvider } from "../lib/supabase/client";
 import { formatLastSeen, isRecentlyOnline } from "../lib/format";
 import { ConversationList, type ConversationListItem } from "./sidebar/ConversationList";
 import { MessageBubble, type MessageReaction, type ReplyPreview } from "./chat/MessageBubble";
@@ -28,8 +29,8 @@ type ConvShape = {
 };
 
 const copy = {
-    fr: { brand: "Pulse Messenger", private: "MESSAGERIE PRIVÉE", title: "Les conversations qui comptent.", subtitle: "Un espace vivant pour parler, créer et garder le fil.", login: "Se connecter", register: "Créer un compte", name: "Nom affiché", email: "Email", password: "Mot de passe", enter: "Entrer dans Pulse", create: "Créer mon espace", search: "Rechercher une conversation", messages: "Messages", newChat: "Nouvelle conversation", assistant: "Assistant IA", online: "En ligne", offline: "Hors ligne", write: "Écrire un message...", aiGreeting: "Bonjour. Je peux t'aider à rédiger, résumer ou organiser une idée.", supabaseMissing: "Supabase n'est pas configuré. Ajoute les variables dans .env.local puis redémarre Next.js.", searchUser: "Rechercher un utilisateur (nom ou @pseudo)", noUserFound: "Aucun utilisateur trouvé.", close: "Fermer", sendFailed: "Envoi impossible. Réessaie.", typing: "Gemini écrit...", block: "Bloquer le contact", unblock: "Débloquer le contact", blockedByYou: "Vous avez bloqué ce contact. Aucun message ne peut être envoyé.", blockedNotice: "Cette conversation est bloquée. Aucun message ne peut être envoyé.", record: "Enregistrer un message vocal", stop: "Envoyer le vocal", cancel: "Annuler l'enregistrement", micUnavailable: "L'enregistrement vocal n'est pas disponible sur cet appareil.", voiceFailed: "Envoi du vocal impossible. Réessaie.", voiceUnavailable: "Vocal indisponible", reply: "Répondre", replyingTo: "En réponse à", cancelReply: "Annuler la réponse", replyUnavailable: "Message indisponible", voicePreview: "Message vocal", react: "Réagir", remove: "Retirer le message", deleted: "Message retiré", removeFailed: "Retrait impossible. Réessaie.", reactFailed: "Réaction impossible. Réessaie.", profile: "Mon profil", changePhoto: "Changer la photo", uploading: "Envoi en cours...", photoBadType: "Choisis une image PNG, JPEG ou WebP.", photoFailed: "Impossible de mettre à jour la photo.", logout: "Se déconnecter", loadingOlder: "Chargement des messages…", historyStart: "Début de la conversation", username: "Pseudo", bio: "Statut", bioPlaceholder: "Disponible", save: "Enregistrer", saving: "Enregistrement…", saved: "Profil enregistré.", usernameTaken: "Ce pseudo est déjà pris.", usernameInvalid: "Pseudo invalide : 3 à 30 caractères (minuscules, chiffres, . ou _).", contactProfile: "Profil du contact", noBio: "Aucun statut.", typingUser: "en train d'écrire…", directChat: "Discussion", newGroup: "Nouveau groupe", groupNamePlaceholder: "Nom du groupe", createGroup: "Créer le groupe", creating: "Création…", groupFailed: "Création du groupe impossible. Réessaie.", members: "membres", member: "Membre", you: "Vous", newMessage: "Nouveau message", notifyEnable: "Activer les notifications", notifyDisable: "Désactiver les notifications", notifyDenied: "Notifications bloquées par les réglages du navigateur.", pwShow: "Afficher le mot de passe", pwHide: "Masquer le mot de passe", confirmPassword: "Confirmer le mot de passe", pwMismatch: "Les deux mots de passe ne correspondent pas.", confirmEmail: "Compte créé. Vérifie ta boîte mail pour confirmer ton adresse, puis connecte-toi.", errAlreadyRegistered: "Un compte existe déjà avec cet email. Connecte-toi ou utilise un autre email.", errInvalidCredentials: "Email ou mot de passe incorrect.", errEmailNotConfirmed: "Confirme d'abord ton email, puis connecte-toi.", errInvalidEmail: "Adresse email invalide.", errWeakPassword: "Mot de passe trop faible : au moins 8 caractères.", errRateLimit: "Trop de tentatives. Patiente quelques minutes avant de réessayer.", resendConfirm: "Renvoyer l'email de confirmation", resendSent: "Email de confirmation renvoyé. Vérifie ta boîte (et tes spams).", resendFailed: "Impossible d'envoyer l'email de confirmation. Réessaie dans quelques minutes.", errUnknown: "Une erreur est survenue. Réessaie.", call: "Appel vocal", calling: "Appel en cours…", ringing: "Ça sonne…", connecting: "Connexion…", inCall: "En communication", declined: "Appel refusé", busy: "Contact occupé", noAnswer: "Pas de réponse", ended: "Appel terminé", failed: "Appel impossible", answer: "Répondre", decline: "Refuser", hangUp: "Raccrocher", mute: "Couper le micro", unmute: "Réactiver le micro", install: "Installer l'application", installBanner: "Installe Pulse sur ton téléphone", installShort: "Installer", installHelp: "Comment installer ?", iosInstallHint: "Sur iPhone/iPad : bouton Partager puis « Sur l'écran d'accueil ».", installed: "Application installée sur cet appareil.", calls: "Appels", noCalls: "Aucun appel pour le moment.", videoCall: "Appel vidéo", callBack: "Rappeler", callMissed: "Appel manqué", callCancelled: "Annulé", callAnswered: "Répondu", callGroup: "Groupe", callUnknown: "Contact", cameraOn: "Activer la caméra", cameraOff: "Couper la caméra", cameraOffShort: "Caméra coupée", camUnavailable: "Caméra indisponible : l'appel continue en audio.", callLeft: "A quitté", callRefused: "A refusé" },
-    en: { brand: "Pulse Messenger", private: "PRIVATE MESSAGING", title: "Conversations that matter.", subtitle: "A living space to talk, create, and keep the thread.", login: "Log in", register: "Create account", name: "Display name", email: "Email", password: "Password", enter: "Enter Pulse", create: "Create my space", search: "Search a conversation", messages: "Messages", newChat: "New conversation", assistant: "AI Assistant", online: "Online", offline: "Offline", write: "Write a message...", aiGreeting: "Hello. I can help you draft, summarize, or organize an idea.", supabaseMissing: "Supabase is not configured. Add the variables to .env.local and restart Next.js.", searchUser: "Search a user (name or @username)", noUserFound: "No user found.", close: "Close", sendFailed: "Could not send. Try again.", typing: "Gemini is typing...", block: "Block this contact", unblock: "Unblock this contact", blockedByYou: "You blocked this contact. No message can be sent.", blockedNotice: "This conversation is blocked. No message can be sent.", record: "Record a voice message", stop: "Send the voice message", cancel: "Cancel the recording", micUnavailable: "Voice recording is not available on this device.", voiceFailed: "Could not send the voice message. Try again.", voiceUnavailable: "Voice message unavailable", reply: "Reply", replyingTo: "Replying to", cancelReply: "Cancel reply", replyUnavailable: "Message unavailable", voicePreview: "Voice message", react: "React", remove: "Remove the message", deleted: "Message removed", removeFailed: "Could not remove the message. Try again.", reactFailed: "Could not react. Try again.", profile: "My profile", changePhoto: "Change photo", uploading: "Uploading...", photoBadType: "Choose a PNG, JPEG or WebP image.", photoFailed: "Could not update the photo.", logout: "Log out", loadingOlder: "Loading messages…", historyStart: "Start of the conversation", username: "Username", bio: "Status", bioPlaceholder: "Available", save: "Save", saving: "Saving…", saved: "Profile saved.", usernameTaken: "This username is already taken.", usernameInvalid: "Invalid username: 3-30 characters (lowercase letters, digits, . or _).", contactProfile: "Contact profile", noBio: "No status.", typingUser: "is typing…", directChat: "Chat", newGroup: "New group", groupNamePlaceholder: "Group name", createGroup: "Create group", creating: "Creating…", groupFailed: "Could not create the group. Try again.", members: "members", member: "Member", you: "You", newMessage: "New message", notifyEnable: "Enable notifications", notifyDisable: "Disable notifications", notifyDenied: "Notifications are blocked in your browser settings.", pwShow: "Show password", pwHide: "Hide password", confirmPassword: "Confirm password", pwMismatch: "The two passwords do not match.", confirmEmail: "Account created. Check your inbox to confirm your address, then log in.", errAlreadyRegistered: "An account already exists with this email. Log in or use another email.", errInvalidCredentials: "Incorrect email or password.", errEmailNotConfirmed: "Confirm your email first, then log in.", errInvalidEmail: "Invalid email address.", errWeakPassword: "Password too weak: at least 8 characters.", errRateLimit: "Too many attempts. Wait a few minutes before retrying.", resendConfirm: "Resend the confirmation email", resendSent: "Confirmation email sent again. Check your inbox (and spam).", resendFailed: "Could not send the confirmation email. Try again in a few minutes.", errUnknown: "Something went wrong. Try again.", call: "Voice call", calling: "Calling…", ringing: "Ringing…", connecting: "Connecting…", inCall: "In call", declined: "Call declined", busy: "Contact busy", noAnswer: "No answer", ended: "Call ended", failed: "Call failed", answer: "Answer", decline: "Decline", hangUp: "Hang up", mute: "Mute microphone", unmute: "Unmute microphone", install: "Install the app", installBanner: "Install Pulse on your phone", installShort: "Install", installHelp: "How to install?", iosInstallHint: "On iPhone/iPad: tap Share, then “Add to Home Screen”.", installed: "App installed on this device.", calls: "Calls", noCalls: "No calls yet.", videoCall: "Video call", callBack: "Call back", callMissed: "Missed call", callCancelled: "Cancelled", callAnswered: "Answered", callGroup: "Group", callUnknown: "Contact", cameraOn: "Turn camera on", cameraOff: "Turn camera off", cameraOffShort: "Camera off", camUnavailable: "Camera unavailable: the call continues with audio.", callLeft: "Left", callRefused: "Declined" }
+    fr: { brand: "Pulse Messenger", private: "MESSAGERIE PRIVÉE", title: "Les conversations qui comptent.", subtitle: "Un espace vivant pour parler, créer et garder le fil.", login: "Se connecter", register: "Créer un compte", name: "Nom affiché", email: "Email", password: "Mot de passe", enter: "Entrer dans Pulse", create: "Créer mon espace", search: "Rechercher une conversation", messages: "Messages", newChat: "Nouvelle conversation", assistant: "Assistant IA", online: "En ligne", offline: "Hors ligne", write: "Écrire un message...", aiGreeting: "Bonjour. Je peux t'aider à rédiger, résumer ou organiser une idée.", supabaseMissing: "Supabase n'est pas configuré. Ajoute les variables dans .env.local puis redémarre Next.js.", searchUser: "Rechercher un utilisateur (nom ou @pseudo)", noUserFound: "Aucun utilisateur trouvé.", close: "Fermer", sendFailed: "Envoi impossible. Réessaie.", typing: "Gemini écrit...", block: "Bloquer le contact", unblock: "Débloquer le contact", blockedByYou: "Vous avez bloqué ce contact. Aucun message ne peut être envoyé.", blockedNotice: "Cette conversation est bloquée. Aucun message ne peut être envoyé.", record: "Enregistrer un message vocal", stop: "Envoyer le vocal", cancel: "Annuler l'enregistrement", micUnavailable: "L'enregistrement vocal n'est pas disponible sur cet appareil.", voiceFailed: "Envoi du vocal impossible. Réessaie.", voiceUnavailable: "Vocal indisponible", reply: "Répondre", replyingTo: "En réponse à", cancelReply: "Annuler la réponse", replyUnavailable: "Message indisponible", voicePreview: "Message vocal", react: "Réagir", remove: "Retirer le message", deleted: "Message retiré", removeFailed: "Retrait impossible. Réessaie.", reactFailed: "Réaction impossible. Réessaie.", profile: "Mon profil", changePhoto: "Changer la photo", uploading: "Envoi en cours...", photoBadType: "Choisis une image PNG, JPEG ou WebP.", photoFailed: "Impossible de mettre à jour la photo.", logout: "Se déconnecter", loadingOlder: "Chargement des messages…", historyStart: "Début de la conversation", username: "Pseudo", bio: "Statut", bioPlaceholder: "Disponible", save: "Enregistrer", saving: "Enregistrement…", saved: "Profil enregistré.", usernameTaken: "Ce pseudo est déjà pris.", usernameInvalid: "Pseudo invalide : 3 à 30 caractères (minuscules, chiffres, . ou _).", contactProfile: "Profil du contact", noBio: "Aucun statut.", typingUser: "en train d'écrire…", directChat: "Discussion", newGroup: "Nouveau groupe", groupNamePlaceholder: "Nom du groupe", createGroup: "Créer le groupe", creating: "Création…", groupFailed: "Création du groupe impossible. Réessaie.", members: "membres", member: "Membre", you: "Vous", newMessage: "Nouveau message", notifyEnable: "Activer les notifications", notifyDisable: "Désactiver les notifications", notifyDenied: "Notifications bloquées par les réglages du navigateur.", pwShow: "Afficher le mot de passe", pwHide: "Masquer le mot de passe", confirmPassword: "Confirmer le mot de passe", pwMismatch: "Les deux mots de passe ne correspondent pas.", confirmEmail: "Compte créé. Vérifie ta boîte mail pour confirmer ton adresse, puis connecte-toi.", errAlreadyRegistered: "Un compte existe déjà avec cet email. Connecte-toi ou utilise un autre email.", errInvalidCredentials: "Email ou mot de passe incorrect.", errEmailNotConfirmed: "Confirme d'abord ton email, puis connecte-toi.", errInvalidEmail: "Adresse email invalide.", errWeakPassword: "Mot de passe trop faible : au moins 8 caractères.", errRateLimit: "Trop de tentatives. Patiente quelques minutes avant de réessayer.", resendConfirm: "Renvoyer l'email de confirmation", resendSent: "Email de confirmation renvoyé. Vérifie ta boîte (et tes spams).", resendFailed: "Impossible d'envoyer l'email de confirmation. Réessaie dans quelques minutes.", errUnknown: "Une erreur est survenue. Réessaie.", call: "Appel vocal", calling: "Appel en cours…", ringing: "Ça sonne…", connecting: "Connexion…", inCall: "En communication", declined: "Appel refusé", busy: "Contact occupé", noAnswer: "Pas de réponse", ended: "Appel terminé", failed: "Appel impossible", answer: "Répondre", decline: "Refuser", hangUp: "Raccrocher", mute: "Couper le micro", unmute: "Réactiver le micro", install: "Installer l'application", installBanner: "Installe Pulse sur ton téléphone", installShort: "Installer", installHelp: "Comment installer ?", iosInstallHint: "Sur iPhone/iPad : bouton Partager puis « Sur l'écran d'accueil ».", installed: "Application installée sur cet appareil.", loading: "Chargement…", calls: "Appels", noCalls: "Aucun appel pour le moment.", videoCall: "Appel vidéo", callBack: "Rappeler", callMissed: "Appel manqué", callCancelled: "Annulé", callAnswered: "Répondu", callGroup: "Groupe", callUnknown: "Contact", cameraOn: "Activer la caméra", cameraOff: "Couper la caméra", cameraOffShort: "Caméra coupée", camUnavailable: "Caméra indisponible : l'appel continue en audio.", callLeft: "A quitté", callRefused: "A refusé" },
+    en: { brand: "Pulse Messenger", private: "PRIVATE MESSAGING", title: "Conversations that matter.", subtitle: "A living space to talk, create, and keep the thread.", login: "Log in", register: "Create account", name: "Display name", email: "Email", password: "Password", enter: "Enter Pulse", create: "Create my space", search: "Search a conversation", messages: "Messages", newChat: "New conversation", assistant: "AI Assistant", online: "Online", offline: "Offline", write: "Write a message...", aiGreeting: "Hello. I can help you draft, summarize, or organize an idea.", supabaseMissing: "Supabase is not configured. Add the variables to .env.local and restart Next.js.", searchUser: "Search a user (name or @username)", noUserFound: "No user found.", close: "Close", sendFailed: "Could not send. Try again.", typing: "Gemini is typing...", block: "Block this contact", unblock: "Unblock this contact", blockedByYou: "You blocked this contact. No message can be sent.", blockedNotice: "This conversation is blocked. No message can be sent.", record: "Record a voice message", stop: "Send the voice message", cancel: "Cancel the recording", micUnavailable: "Voice recording is not available on this device.", voiceFailed: "Could not send the voice message. Try again.", voiceUnavailable: "Voice message unavailable", reply: "Reply", replyingTo: "Replying to", cancelReply: "Cancel reply", replyUnavailable: "Message unavailable", voicePreview: "Voice message", react: "React", remove: "Remove the message", deleted: "Message removed", removeFailed: "Could not remove the message. Try again.", reactFailed: "Could not react. Try again.", profile: "My profile", changePhoto: "Change photo", uploading: "Uploading...", photoBadType: "Choose a PNG, JPEG or WebP image.", photoFailed: "Could not update the photo.", logout: "Log out", loadingOlder: "Loading messages…", historyStart: "Start of the conversation", username: "Username", bio: "Status", bioPlaceholder: "Available", save: "Save", saving: "Saving…", saved: "Profile saved.", usernameTaken: "This username is already taken.", usernameInvalid: "Invalid username: 3-30 characters (lowercase letters, digits, . or _).", contactProfile: "Contact profile", noBio: "No status.", typingUser: "is typing…", directChat: "Chat", newGroup: "New group", groupNamePlaceholder: "Group name", createGroup: "Create group", creating: "Creating…", groupFailed: "Could not create the group. Try again.", members: "members", member: "Member", you: "You", newMessage: "New message", notifyEnable: "Enable notifications", notifyDisable: "Disable notifications", notifyDenied: "Notifications are blocked in your browser settings.", pwShow: "Show password", pwHide: "Hide password", confirmPassword: "Confirm password", pwMismatch: "The two passwords do not match.", confirmEmail: "Account created. Check your inbox to confirm your address, then log in.", errAlreadyRegistered: "An account already exists with this email. Log in or use another email.", errInvalidCredentials: "Incorrect email or password.", errEmailNotConfirmed: "Confirm your email first, then log in.", errInvalidEmail: "Invalid email address.", errWeakPassword: "Password too weak: at least 8 characters.", errRateLimit: "Too many attempts. Wait a few minutes before retrying.", resendConfirm: "Resend the confirmation email", resendSent: "Confirmation email sent again. Check your inbox (and spam).", resendFailed: "Could not send the confirmation email. Try again in a few minutes.", errUnknown: "Something went wrong. Try again.", call: "Voice call", calling: "Calling…", ringing: "Ringing…", connecting: "Connecting…", inCall: "In call", declined: "Call declined", busy: "Contact busy", noAnswer: "No answer", ended: "Call ended", failed: "Call failed", answer: "Answer", decline: "Decline", hangUp: "Hang up", mute: "Mute microphone", unmute: "Unmute microphone", install: "Install the app", installBanner: "Install Pulse on your phone", installShort: "Install", installHelp: "How to install?", iosInstallHint: "On iPhone/iPad: tap Share, then “Add to Home Screen”.", installed: "App installed on this device.", loading: "Loading…", calls: "Calls", noCalls: "No calls yet.", videoCall: "Video call", callBack: "Call back", callMissed: "Missed call", callCancelled: "Cancelled", callAnswered: "Answered", callGroup: "Group", callUnknown: "Contact", cameraOn: "Turn camera on", cameraOff: "Turn camera off", cameraOffShort: "Camera off", camUnavailable: "Camera unavailable: the call continues with audio.", callLeft: "Left", callRefused: "Declined" }
 };
 
 const aiEntry = (language: Language): ConversationListItem => ({ id: "ai-gemini", name: "Gemini AI", preview: copy[language].assistant, online: true, avatar: "/images/gemini-avatar.svg" });
@@ -56,13 +57,12 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
     const [language, setLanguage] = useState<Language>("fr");
     const [dark, setDark] = useState(false);
     const [authMode, setAuthMode] = useState<"login" | "register">(initialMode);
-    const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
+    // L'identité vient de Clerk ; le client Supabase résout les jetons Clerk à la volée.
+    const { isLoaded: authLoaded, getToken } = useAuth();
+    const { user: clerkUser } = useUser();
+    const { signOut } = useClerk();
+    const user = useMemo(() => (clerkUser ? { id: clerkUser.id, email: clerkUser.primaryEmailAddress?.emailAddress } : null), [clerkUser]);
     const [profile, setProfile] = useState<Profile | null>(null);
-    const [authForm, setAuthForm] = useState({ name: "", email: "", password: "" });
-    const [passwordConfirm, setPasswordConfirm] = useState("");
-    const [showPw, setShowPw] = useState(false);
-    const [authError, setAuthError] = useState("");
-    const [authNotice, setAuthNotice] = useState("");
     const [query, setQuery] = useState("");
     const [selectedId, setSelectedId] = useState("ai-gemini");
     const [aiConversationId, setAiConversationId] = useState<string | null>(null);
@@ -148,6 +148,15 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
     const tRef = useRef(t);
     tRef.current = t;
 
+    // Clerk est la source des jetons : le fournisseur est branché avant les effets
+    // qui interrogent Supabase (les effets s'exécutent dans l'ordre de déclaration).
+    useEffect(() => {
+        if (!supabase) return;
+        setSupabaseTokenProvider(() => getToken({ template: "supabase" }));
+        void getToken({ template: "supabase" }).then(token => { if (token) supabase.realtime.setAuth(token); });
+        return () => setSupabaseTokenProvider(null);
+    }, [supabase, getToken]);
+
     useEffect(() => {
         const savedLanguage = window.localStorage.getItem("pulse-language");
         if (savedLanguage === "en" || savedLanguage === "fr") setLanguage(savedLanguage);
@@ -155,11 +164,7 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
         setNotifyOn(window.localStorage.getItem("pulse-notify") === "1");
         setInstallHidden(window.localStorage.getItem("pulse-install-hidden") === "1");
         if (typeof Notification !== "undefined") setNotifyDenied(Notification.permission === "denied");
-        if (!supabase) return;
-        supabase.auth.getUser().then(({ data }) => setUser(data.user ? { id: data.user.id, email: data.user.email } : null));
-        const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ? { id: session.user.id, email: session.user.email } : null));
-        return () => sub.subscription.unsubscribe();
-    }, [supabase]);
+    }, []);
 
     useEffect(() => {
         window.localStorage.setItem("pulse-language", language);
@@ -738,60 +743,15 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
         void loadConversations();
     }
 
-    function authErrorMessage(message: string): string {
-        const normalized = message.toLowerCase();
-        if (normalized.includes("already registered")) return t.errAlreadyRegistered;
-        if (normalized.includes("invalid login credentials")) return t.errInvalidCredentials;
-        if (normalized.includes("email not confirmed")) return t.errEmailNotConfirmed;
-        if (normalized.includes("invalid format") || normalized.includes("validate email")) return t.errInvalidEmail;
-        if (normalized.includes("password should be") || normalized.includes("weak password") || normalized.includes("password is too short")) return t.errWeakPassword;
-        if (normalized.includes("rate limit") || normalized.includes("too many")) return t.errRateLimit;
-        return message || t.errUnknown;
-    }
-
-    async function submitAuth(event: FormEvent) {
-        event.preventDefault();
-        setAuthError("");
-        setAuthNotice("");
-        if (!supabase) { setAuthError(t.supabaseMissing); return; }
-        const email = authForm.email.trim();
-        const name = authForm.name.trim();
-        if (authMode === "register" && authForm.password !== passwordConfirm) { setAuthError(t.pwMismatch); return; }
-        const result = authMode === "login"
-            ? await supabase.auth.signInWithPassword({ email, password: authForm.password })
-            : await supabase.auth.signUp({ email, password: authForm.password, options: { data: { name: name || email.split("@")[0] } } });
-        if (result.error) setAuthError(authErrorMessage(result.error.message));
-        else if (result.data.session && result.data.user) setUser({ id: result.data.user.id, email: result.data.user.email });
-        else if ((result.data.user?.identities?.length ?? 0) === 0) setAuthError(t.errAlreadyRegistered);
-        else {
-            // Inscription sans session : la confirmation par email est active.
-            setAuthNotice(t.confirmEmail);
-            setAuthMode("login");
-            setAuthForm({ ...authForm, password: "" });
-            setPasswordConfirm("");
-        }
-    }
-
-    async function resendConfirmation() {
-        setAuthError("");
-        setAuthNotice("");
-        if (!supabase) { setAuthError(t.supabaseMissing); return; }
-        const email = authForm.email.trim();
-        if (!email) { setAuthError(t.errInvalidEmail); return; }
-        const { error } = await supabase.auth.resend({ type: "signup", email });
-        if (error) setAuthError(authErrorMessage(error.message) === t.errRateLimit ? t.errRateLimit : t.resendFailed);
-        else setAuthNotice(t.resendSent);
-    }
-
     async function logout() {
         setProfileOpen(false);
+        // Marque la présence hors ligne avant que Clerk ne révoque le jeton.
         if (supabase && user) await supabase.from("users").update({ online: false }).eq("id", user.id);
-        await supabase?.auth.signOut();
-        setUser(null);
         setProfile(null);
         setConversations([]);
         setSelectedId("ai-gemini");
         setMessages(initialMessages(language));
+        await signOut({ redirectUrl: "/" });
     }
 
     async function sendMessage(content: string) {
@@ -970,7 +930,25 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
 
     const showInstallBanner = !installed && !installHidden && (platform === "android" || platform === "ios");
 
-    if (!user) return <main className="auth"><section className="auth-card"><div className="brand"><span className="brand-mark">✦</span>{t.brand}</div><p className="eyebrow">{t.private}</p><h1>{t.title}</h1><p>{t.subtitle}</p><div className="top-actions"><button className="icon-button" onClick={() => setLanguage(language === "fr" ? "en" : "fr")}>{language.toUpperCase()}</button><button className="icon-button" onClick={() => setDark(!dark)}>{dark ? "☀" : "☾"}</button></div><div className="auth-tabs"><button className={authMode === "login" ? "active" : ""} onClick={() => { setAuthMode("login"); setAuthError(""); setAuthNotice(""); }}>{t.login}</button><button className={authMode === "register" ? "active" : ""} onClick={() => { setAuthMode("register"); setAuthError(""); setAuthNotice(""); }}>{t.register}</button></div><form className="auth-form" onSubmit={submitAuth}>{authMode === "register" && <label>{t.name}<input required autoComplete="name" value={authForm.name} onChange={event => setAuthForm({ ...authForm, name: event.target.value })} /></label>}<label>{t.email}<input required type="email" autoComplete="email" value={authForm.email} onChange={event => setAuthForm({ ...authForm, email: event.target.value })} /></label><label>{t.password}<span className="pw-wrap"><input required minLength={8} type={showPw ? "text" : "password"} autoComplete={authMode === "login" ? "current-password" : "new-password"} value={authForm.password} onChange={event => setAuthForm({ ...authForm, password: event.target.value })} /><button type="button" className="pw-toggle" aria-label={showPw ? t.pwHide : t.pwShow} title={showPw ? t.pwHide : t.pwShow} onClick={() => setShowPw(!showPw)}>{showPw ? "🙈" : "👁"}</button></span></label>{authMode === "register" && <label>{t.confirmPassword}<input required minLength={8} type={showPw ? "text" : "password"} autoComplete="new-password" value={passwordConfirm} onChange={event => setPasswordConfirm(event.target.value)} /></label>}<button className="primary" type="submit">{authMode === "login" ? t.enter : t.create}</button>{authError && <span className="error">{authError}</span>}{authNotice && <span className="notice">{authNotice}</span>}{(authNotice || authError === t.errEmailNotConfirmed) && <button className="link-button" type="button" onClick={() => void resendConfirmation()}>{t.resendConfirm}</button>}</form><p className="auth-install"><a href="/download">📲 {t.install}</a></p></section></main>;
+    // Clerk impose son propre rendu : on masque sa carte pour s'aligner sur le thème Pulse.
+    const clerkAppearance = {
+        variables: {
+            colorPrimary: "#00a884",
+            borderRadius: "9px",
+            colorBackground: dark ? "#202c33" : "#ffffff",
+            colorText: dark ? "#e9edef" : "#1f2c32",
+            colorTextSecondary: dark ? "#aebac1" : "#5b6b73",
+            colorInputBackground: dark ? "#2a3942" : "#ffffff",
+            colorInputText: dark ? "#e9edef" : "#1f2c32"
+        },
+        elements: { rootBox: { width: "100%" }, card: { width: "100%", padding: "0", background: "transparent", boxShadow: "none" } }
+    };
+
+    if (!authLoaded) return <main className="auth"><section className="auth-card"><div className="brand"><span className="brand-mark">✦</span>{t.brand}</div><p className="eyebrow">{t.private}</p><div className="list-status"><span className="spinner" />{t.loading}</div></section></main>;
+
+    if (!user) return <main className="auth"><section className="auth-card"><div className="brand"><span className="brand-mark">✦</span>{t.brand}</div><p className="eyebrow">{t.private}</p><h1>{t.title}</h1><p>{t.subtitle}</p><div className="top-actions"><button className="icon-button" onClick={() => setLanguage(language === "fr" ? "en" : "fr")}>{language.toUpperCase()}</button><button className="icon-button" onClick={() => setDark(!dark)}>{dark ? "☀" : "☾"}</button></div><div className="auth-tabs"><button className={authMode === "login" ? "active" : ""} onClick={() => setAuthMode("login")}>{t.login}</button><button className={authMode === "register" ? "active" : ""} onClick={() => setAuthMode("register")}>{t.register}</button></div><div className="auth-clerk">{authMode === "login"
+        ? <SignIn routing="hash" appearance={clerkAppearance} fallbackRedirectUrl="/" />
+        : <SignUp routing="hash" appearance={clerkAppearance} fallbackRedirectUrl="/" />}</div><p className="auth-install"><a href="/download">📲 {t.install}</a></p></section></main>;
 
     return <main className={`pulse-shell ${showList ? "show-list" : ""}`}>
         <aside className="pulse-sidebar">

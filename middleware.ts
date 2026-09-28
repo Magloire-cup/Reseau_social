@@ -1,10 +1,7 @@
-import { updateSession } from "./lib/supabase/middleware";
-import type { NextRequest } from "next/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 
-export async function middleware(request: NextRequest) {
-    return updateSession(request);
-}
+export default clerkMiddleware();
 
 export const config = {
-    matcher: ["/((?!_next/static|_next/image|favicon.svg|manifest.webmanifest).*)"]
+    matcher: ["/((?!_next/static|_next/image|favicon.svg|manifest.webmanifest).*)", "/(api|trpc)(.*)", "/__clerk/:path*"]
 };

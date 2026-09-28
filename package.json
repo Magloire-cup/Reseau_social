@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@clerk/localizations": "^4.20.0",
+    "@clerk/nextjs": "^7.9.7",
     "@google/genai": "^1.16.0",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.117.2",

@@ -1,3 +1,4 @@
+import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "../../../lib/supabase/server";
 
@@ -7,8 +8,8 @@ const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 export async function GET(request: Request) {
     const supabase = await createServerSupabase();
     if (!supabase) return NextResponse.json({ messages: [] });
-    const user = await supabase.auth.getUser();
-    if (user.error) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
+    const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
     const conversationId = new URL(request.url).searchParams.get("conversationId");
     if (!conversationId) return NextResponse.json({ error: "conversationId est obligatoire." }, { status: 400 });
     const result = await supabase.from("messages").select("id, conversation_id, sender_id, content, type, status, created_at, reply_to_id").eq("conversation_id", conversationId).order("created_at", { ascending: true }).limit(100);
@@ -19,8 +20,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     const supabase = await createServerSupabase();
     if (!supabase) return NextResponse.json({ error: "Supabase n'est pas configuré." }, { status: 503 });
-    const user = await supabase.auth.getUser();
-    if (user.error || !user.data.user) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
+    const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
     const input = await request.json() as { conversationId?: string; content?: string; type?: string; messageId?: string; replyToId?: string };
     const content = String(input.content || "").trim();
     const type = input.type || "text";
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
         if (!target.data) return NextResponse.json({ error: "Message cité introuvable." }, { status: 400 });
         replyToId = input.replyToId;
     }
-    const result = await supabase.from("messages").insert({ id: messageId ?? undefined, conversation_id: input.conversationId, sender_id: user.data.user.id, content, type, status: "sent", reply_to_id: replyToId }).select().single();
+    const result = await supabase.from("messages").insert({ id: messageId ?? undefined, conversation_id: input.conversationId, sender_id: userId, content, type, status: "sent", reply_to_id: replyToId }).select().single();
     if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
     return NextResponse.json({ message: result.data }, { status: 201 });
 }

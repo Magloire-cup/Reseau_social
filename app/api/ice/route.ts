@@ -1,5 +1,5 @@
+import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { createServerSupabase } from "../../../lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -12,11 +12,8 @@ const STUN_SERVERS: RTCIceServer[] = [
 // ne peuvent pas établir la connexion média. Les identifiants viennent de l'environnement
 // pour ne pas finir dans le bundle client.
 export async function GET() {
-    const supabase = await createServerSupabase();
-    if (supabase) {
-        const auth = await supabase.auth.getUser();
-        if (auth.error) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
-    }
+    const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
     const urls = (process.env.TURN_URLS ?? "").split(",").map(entry => entry.trim()).filter(Boolean);
     const username = process.env.TURN_USERNAME;
     const credential = process.env.TURN_CREDENTIAL;

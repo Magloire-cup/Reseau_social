@@ -1,3 +1,5 @@
+import { ClerkProvider } from "@clerk/nextjs";
+import { frFR } from "@clerk/localizations";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
@@ -53,5 +55,12 @@ const jsonLd = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-    return <html lang="fr"><body>{children}<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} /></body></html>;
+    return (
+        <html lang="fr">
+            <body>
+                <ClerkProvider localization={frFR}>{children}</ClerkProvider>
+                <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+            </body>
+        </html>
+    );
 }
