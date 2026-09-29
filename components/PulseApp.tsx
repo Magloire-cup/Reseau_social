@@ -1,6 +1,6 @@
 "use client";
 
-import { SignIn, SignUp, useAuth, useClerk, useUser } from "@clerk/nextjs";
+import { useAuth, useClerk, useUser } from "@clerk/nextjs";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { askGemini, type GeminiMessage } from "../lib/gemini";
@@ -15,6 +15,7 @@ import { CallOverlay } from "./call/CallOverlay";
 import { CallLog, type CallLogEntry } from "./sidebar/CallLog";
 import { useVoiceCall, type CallKind, type CallPeer } from "../lib/useVoiceCall";
 import { useInstallPrompt } from "../lib/useInstallPrompt";
+import { AuthScreen } from "./auth/AuthScreen";
 
 type Language = "fr" | "en";
 type ChatMessage = GeminiMessage & { id: string; createdAt: string; status?: "sent" | "delivered" | "read"; type?: string; audioUrl?: string | null; audioPath?: string | null; durationSeconds?: number | null; senderId?: string | null; replyToId?: string | null; deletedAt?: string | null; reactions?: MessageReaction[] };
@@ -930,25 +931,20 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
 
     const showInstallBanner = !installed && !installHidden && (platform === "android" || platform === "ios");
 
-    // Clerk impose son propre rendu : on masque sa carte pour s'aligner sur le thème Pulse.
-    const clerkAppearance = {
-        variables: {
-            colorPrimary: "#00a884",
-            borderRadius: "9px",
-            colorBackground: dark ? "#202c33" : "#ffffff",
-            colorText: dark ? "#e9edef" : "#1f2c32",
-            colorTextSecondary: dark ? "#aebac1" : "#5b6b73",
-            colorInputBackground: dark ? "#2a3942" : "#ffffff",
-            colorInputText: dark ? "#e9edef" : "#1f2c32"
-        },
-        elements: { rootBox: { width: "100%" }, card: { width: "100%", padding: "0", background: "transparent", boxShadow: "none" } }
-    };
-
-    if (!authLoaded) return <main className="auth"><section className="auth-card"><div className="brand"><span className="brand-mark">✦</span>{t.brand}</div><p className="eyebrow">{t.private}</p><div className="list-status"><span className="spinner" />{t.loading}</div></section></main>;
-
-    if (!user) return <main className="auth"><section className="auth-card"><div className="auth-copy"><div className="brand"><span className="brand-mark">✦</span>{t.brand}</div><p className="eyebrow">{t.private}</p><h1>{t.title}</h1><p>{t.subtitle}</p><div className="top-actions"><button className="icon-button" onClick={() => setLanguage(language === "fr" ? "en" : "fr")}>{language.toUpperCase()}</button><button className="icon-button" onClick={() => setDark(!dark)}>{dark ? "☀" : "☾"}</button></div></div><div className="auth-side"><div className="auth-tabs"><button className={authMode === "login" ? "active" : ""} onClick={() => setAuthMode("login")}>{t.login}</button><button className={authMode === "register" ? "active" : ""} onClick={() => setAuthMode("register")}>{t.register}</button></div><div className="auth-clerk">{authMode === "login"
-        ? <SignIn routing="hash" appearance={clerkAppearance} fallbackRedirectUrl="/" />
-        : <SignUp routing="hash" appearance={clerkAppearance} fallbackRedirectUrl="/" />}</div><p className="auth-install"><a href="/download">📲 {t.install}</a></p></div></section></main>;
+    if (!authLoaded || !user) {
+        return (
+            <AuthScreen
+                language={language}
+                dark={dark}
+                authMode={authMode}
+                loading={!authLoaded}
+                t={t}
+                onLanguage={() => setLanguage(language === "fr" ? "en" : "fr")}
+                onDark={() => setDark(!dark)}
+                onAuthMode={setAuthMode}
+            />
+        );
+    }
 
     return <main className={`pulse-shell ${showList ? "show-list" : ""}`}>
         <aside className="pulse-sidebar">

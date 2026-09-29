@@ -1,13 +1,11 @@
-import { SignUp } from "@clerk/nextjs";
+import type { Metadata } from "next";
+import PulseApp from "../../../components/PulseApp";
+
+export const metadata: Metadata = {
+    title: "Créer un compte",
+    description: "Crée ton compte Pulse Messenger : messagerie, appels et assistant Gemini AI."
+};
 
 export default function SignUpPage() {
-  return (
-    <main className="auth">
-      <section className="auth-card">
-        <div className="auth-clerk">
-          <SignUp />
-        </div>
-      </section>
-    </main>
-  );
+    return <PulseApp initialMode="register" />;
 }
