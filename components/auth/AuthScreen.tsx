@@ -71,6 +71,7 @@ export function AuthScreen({
             card: { width: "100%", padding: "0", background: "transparent", boxShadow: "none" },
             headerTitle: { display: "none" },
             headerSubtitle: { display: "none" },
+            lastAuthenticationStrategyBadge: { display: "none" },
             footer: { background: "transparent" },
             formButtonPrimary: {
                 background: "#00a884",
