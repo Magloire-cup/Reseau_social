@@ -19,7 +19,6 @@ const extras = {
         lang: "Passer en anglais",
         themeLight: "Passer en thème clair",
         themeDark: "Passer en thème sombre",
-        points: ["Messages privés et groupes", "Appels vocaux et vidéo", "Assistant Gemini AI"],
         loginHint: "Connecte-toi pour retrouver tes conversations.",
         registerHint: "Crée ton espace en quelques secondes."
     },
@@ -27,7 +26,6 @@ const extras = {
         lang: "Switch to French",
         themeLight: "Switch to light theme",
         themeDark: "Switch to dark theme",
-        points: ["Private chats and groups", "Voice and video calls", "Gemini AI assistant"],
         loginHint: "Sign in to pick up your conversations.",
         registerHint: "Create your space in a few seconds."
     }
@@ -103,9 +101,6 @@ export function AuthScreen({
                     <p className="eyebrow">{t.private}</p>
                     <h1>{t.title}</h1>
                     <p>{t.subtitle}</p>
-                    <ul className="auth-points">
-                        {extra.points.map(point => <li key={point}>{point}</li>)}
-                    </ul>
                     <div className="top-actions">
                         <button className="icon-button" type="button" onClick={onLanguage} aria-label={extra.lang} title={extra.lang}>{language.toUpperCase()}</button>
                         <button className="icon-button" type="button" onClick={onDark} aria-label={dark ? extra.themeLight : extra.themeDark} title={dark ? extra.themeLight : extra.themeDark}>{dark ? "☀" : "☾"}</button>

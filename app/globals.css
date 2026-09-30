@@ -77,9 +77,6 @@ button { cursor: pointer; }
 .auth-card p { color: var(--muted); }
 .auth-copy { display: grid; gap: 10px; }
 .auth-copy p, .auth-copy h1 { margin: 0; }
-.auth-points { display: grid; gap: 6px; margin: 2px 0 0; padding: 0; list-style: none; }
-.auth-points li { display: flex; align-items: flex-start; gap: 10px; color: var(--text); font-size: .9rem; line-height: 1.4; }
-.auth-points li::before { content: ""; flex: 0 0 auto; width: 8px; height: 8px; margin-top: 7px; border-radius: 50%; background: var(--green); }
 .auth-hint { margin: 8px 0 0; font-size: .85rem; line-height: 1.4; }
 .auth-copy .top-actions { margin-top: 2px; }
 @media (min-width: 900px) {
@@ -333,8 +330,6 @@ button.chat-identity:hover { background: var(--hover); }
   .call-btn { width: 54px; height: 54px; }
   .auth { padding: 10px; }
   .auth-card { padding: 16px 14px; border-radius: 16px; }
-  .auth-points { gap: 6px; }
-  .auth-points li { font-size: .84rem; }
   .download-card { padding: 20px 16px; }
   .download-head { flex-wrap: wrap; }
   .download-platforms { grid-template-columns: 1fr; }
@@ -354,7 +349,7 @@ button.chat-identity:hover { background: var(--hover); }
   .auth { padding: 8px; }
   .auth-card { padding: 12px 14px; border-radius: 14px; }
   .auth-card h1 { margin: 0 0 4px; font-size: 1.25rem; }
-  .auth-card .eyebrow, .auth-points, .auth-hint { display: none; }
+  .auth-card .eyebrow, .auth-hint { display: none; }
   .auth-tabs { margin-top: 8px; }
   .auth-clerk { margin-top: 8px; }
   .auth-install { margin-top: 6px; }
