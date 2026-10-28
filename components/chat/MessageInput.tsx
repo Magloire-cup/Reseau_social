@@ -6,6 +6,8 @@ export type RecordingLabels = { record: string; stop: string; cancel: string; un
 
 type MessageInputProps = {
     placeholder: string;
+    sendLabel?: string;
+    sendFailed?: string;
     disabled?: boolean;
     allowAudio?: boolean;
     labels?: RecordingLabels;
@@ -29,7 +31,7 @@ function MicIcon() {
     return <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z" /></svg>;
 }
 
-export function MessageInput({ placeholder, disabled = false, allowAudio = false, labels, onSend, onSendAudio, onTyping }: MessageInputProps) {
+export function MessageInput({ placeholder, sendLabel = "Send message", sendFailed = "Could not send the message.", disabled = false, allowAudio = false, labels, onSend, onSendAudio, onTyping }: MessageInputProps) {
     const [value, setValue] = useState("");
     const [recording, setRecording] = useState(false);
     const [seconds, setSeconds] = useState(0);
@@ -40,6 +42,7 @@ export function MessageInput({ placeholder, disabled = false, allowAudio = false
     const cancelRef = useRef(false);
     const secondsRef = useRef(0);
     const timerRef = useRef<number | null>(null);
+    const sendingRef = useRef(false);
 
     function stopTracks() {
         streamRef.current?.getTracks().forEach(track => track.stop());
@@ -124,9 +127,12 @@ export function MessageInput({ placeholder, disabled = false, allowAudio = false
     async function submit(event: FormEvent) {
         event.preventDefault();
         const content = value.trim();
-        if (!content || disabled || recording) return;
-        await onSend(content);
-        setValue("");
+        if (!content || content.length > 4000 || disabled || recording || sendingRef.current) return;
+        sendingRef.current = true;
+        setError("");
+        try { await onSend(content); setValue(""); }
+        catch { setError(sendFailed); }
+        finally { sendingRef.current = false; }
     }
 
     return <form className={`composer${recording ? " recording" : ""}`} onSubmit={submit}>
@@ -135,10 +141,10 @@ export function MessageInput({ placeholder, disabled = false, allowAudio = false
             <span className="recording-status"><span className="rec-dot" />{formatDuration(seconds)}</span>
             <button className="send" type="button" aria-label={labels?.stop} onClick={() => stopRecording(true)}>➤</button>
         </> : <>
-            <input value={value} onChange={event => { setValue(event.target.value); if (event.target.value.trim()) onTyping?.(); }} placeholder={placeholder} disabled={disabled} />
+            <input value={value} maxLength={4000} aria-label={placeholder} onChange={event => { setValue(event.target.value); if (event.target.value.trim()) onTyping?.(); }} placeholder={placeholder} disabled={disabled} />
             {allowAudio && onSendAudio && <button className="icon-button mic-button" type="button" aria-label={labels?.record} disabled={disabled} onClick={startRecording}><MicIcon /></button>}
-            <button className="send" type="submit" aria-label="Send message">➤</button>
+            <button className="send" type="submit" aria-label={sendLabel} disabled={disabled || !value.trim()}>➤</button>
         </>}
-        {error && <span className="composer-error">{error}</span>}
+        {error && <span className="composer-error" role="alert">{error}</span>}
     </form>;
 }

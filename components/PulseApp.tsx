@@ -16,6 +16,9 @@ import { CallLog, type CallLogEntry } from "./sidebar/CallLog";
 import { useVoiceCall, type CallKind, type CallPeer } from "../lib/useVoiceCall";
 import { useInstallPrompt } from "../lib/useInstallPrompt";
 import { AuthScreen } from "./auth/AuthScreen";
+import { MessageSearch } from "./chat/MessageSearch";
+import { MessageToolsDialog } from "./chat/MessageToolsDialog";
+import { messageToolsCopy, type TextMessageRow } from "./chat/messageToolsCopy";
 
 type Language = "fr" | "en";
 type ChatMessage = GeminiMessage & { id: string; createdAt: string; status?: "sent" | "delivered" | "read"; type?: string; audioUrl?: string | null; audioPath?: string | null; durationSeconds?: number | null; senderId?: string | null; replyToId?: string | null; deletedAt?: string | null; reactions?: MessageReaction[] };
@@ -70,6 +73,7 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
     const [conversations, setConversations] = useState<ConversationListItem[]>([]);
     const [messages, setMessages] = useState<ChatMessage[]>(() => initialMessages("fr"));
     const [isSending, setIsSending] = useState(false);
+    const pendingTextRef = useRef<{ key: string; id: string; createdAt: string } | null>(null);
     const [showList, setShowList] = useState(true);
     const [newChatOpen, setNewChatOpen] = useState(false);
     const [userQuery, setUserQuery] = useState("");
@@ -100,12 +104,22 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
     const [reactingToId, setReactingToId] = useState<string | null>(null);
     const [actionsForId, setActionsForId] = useState<string | null>(null);
     const [actionError, setActionError] = useState("");
+    const [actionNotice, setActionNotice] = useState("");
+    const [searchOpen, setSearchOpen] = useState(false);
+    const [messageTool, setMessageTool] = useState<{ mode: "edit" | "forward"; message: ChatMessage; conversationId: string } | null>(null);
     const [highlightId, setHighlightId] = useState<string | null>(null);
     const [sidebarTab, setSidebarTab] = useState<"chats" | "calls">("chats");
     const [callsRefresh, setCallsRefresh] = useState(0);
     const [memberDirectory, setMemberDirectory] = useState<Record<string, CallPeer[]>>({});
     const t = copy[language];
+    const tools = messageToolsCopy[language];
     const supabase = useMemo(() => createClient(), []);
+
+    useEffect(() => {
+        if (!actionNotice) return;
+        const timer = window.setTimeout(() => setActionNotice(""), 3500);
+        return () => window.clearTimeout(timer);
+    }, [actionNotice]);
 
     // Appel vocal WebRTC : la signalisation passe par les canaux Realtime Supabase.
     const call = useVoiceCall({
@@ -434,6 +448,9 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
         setReactingToId(null);
         setActionsForId(null);
         setActionError("");
+        setActionNotice("");
+        setMessageTool(null);
+        setSearchOpen(false);
         setHighlightId(null);
         (async () => {
             const page = await fetchPage(activeConvId);
@@ -543,10 +560,17 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
                 loadConversations();
             })
             .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages" }, payload => {
-                // Nos messages passés à « lu » par le destinataire (✓✓) ou un message retiré par son auteur
-                const row = payload.new as { conversation_id?: string; sender_id?: string | null; deleted_at?: string | null };
+                const row = payload.new as DbMessageRow;
                 const active = selectedRef.current === "ai-gemini" ? aiConvRef.current : selectedRef.current;
-                scheduleUpdateRefresh(Boolean(active && row.conversation_id === active && (row.sender_id === user.id || Boolean(row.deleted_at))));
+                if (active && row.conversation_id === active) {
+                    setMessages(current => current.map(message => message.id === row.id
+                        ? { ...message, content: row.content, status: row.status, deletedAt: row.deleted_at ?? null, ...(row.deleted_at ? { reactions: [], audioUrl: null, audioPath: null } : {}) }
+                        : message));
+                    setReplyTo(current => current?.id === row.id
+                        ? row.deleted_at ? null : { ...current, content: current.isAudio ? current.content : row.content }
+                        : current);
+                }
+                scheduleUpdateRefresh(false);
             })
             // La clé primaire (message_id, user_id) suffit : les DELETE portent déjà ces colonnes.
             .on("postgres_changes", { event: "*", schema: "public", table: "message_reactions" }, payload => {
@@ -648,7 +672,7 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
         () => [aiEntry(language), ...conversations].filter(item => item.name.toLowerCase().includes(query.toLowerCase())),
         [conversations, query, language]
     );
-    const selectedConversation = visibleConversations.find(item => item.id === selectedId) ?? aiEntry(language);
+    const selectedConversation = conversations.find(item => item.id === selectedId) ?? aiEntry(language);
     const otherId = selectedConversation.otherUserId;
     const isGroup = Boolean(selectedConversation.isGroup);
     const selectedRecentlyOnline = otherId
@@ -689,6 +713,26 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
         if (!target) return null;
         if (target.deletedAt) return { name: authorLabel(target) || undefined, content: t.deleted, isAudio: false };
         return { name: authorLabel(target) || undefined, content: target.content, isAudio: target.type === "audio" };
+    }
+
+    async function copyMessage(message: ChatMessage) {
+        setActionsForId(null);
+        try { await navigator.clipboard.writeText(message.content); setActionNotice(tools.copied); }
+        catch { flashActionError(tools.copyFailed); }
+    }
+
+    function openMessageTool(mode: "edit" | "forward", message: ChatMessage) {
+        if (!activeConvId || message.deletedAt || convBlocked) return;
+        setActionsForId(null);
+        setMessageTool({ mode, message, conversationId: activeConvId });
+    }
+
+    function applyEditedMessage(row: TextMessageRow, previousContent: string) {
+        if (activeConvRef.current !== row.conversation_id) return;
+        setMessages(current => current.map(message => message.id === row.id && !message.deletedAt && message.content === previousContent
+            ? { ...message, content: row.content } : message));
+        setReplyTo(current => current?.id === row.id && current.content === previousContent ? { ...current, content: row.content } : current);
+        void loadConversations();
     }
 
     function startReply(message: ChatMessage) {
@@ -758,6 +802,9 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
     async function sendMessage(content: string) {
         const prompt = content.trim();
         if (!prompt || isSending) return;
+        const conversationId = activeConvId;
+        const selectedAtSend = selectedId;
+        const stillActive = () => activeConvRef.current === conversationId && selectedRef.current === selectedAtSend;
         setIsSending(true);
         if (selectedId === "ai-gemini") {
             const userMessage: ChatMessage = { id: crypto.randomUUID(), role: "user", content: prompt, createdAt: new Date().toISOString() };
@@ -765,24 +812,35 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
             setMessages(nextMessages);
             try {
                 const answer = await askGemini(aiConversationId || selectedId, nextMessages.map(message => ({ role: message.role, content: message.content })), language, userMessage.id);
-                setMessages(current => mergeMessages(current, [{ id: answer.id, role: "model", content: answer.content, createdAt: answer.createdAt }]));
-            } catch (error) {
-                setMessages(current => mergeMessages(current, [{ id: crypto.randomUUID(), role: "model", content: error instanceof Error ? error.message : t.sendFailed, createdAt: new Date().toISOString() }]));
+                if (stillActive()) setMessages(current => mergeMessages(current, [{ id: answer.id, role: "model", content: answer.content, createdAt: answer.createdAt }]));
+            } catch {
+                if (stillActive()) setMessages(current => current.filter(message => message.id !== userMessage.id));
+                throw new Error(t.sendFailed);
             } finally { setIsSending(false); }
             return;
         }
         const quoted = replyTo;
         setReplyTo(null);
-        const optimistic: ChatMessage = { id: crypto.randomUUID(), role: "user", content: prompt, createdAt: new Date().toISOString(), status: "sent", replyToId: quoted?.id ?? null };
+        const key = JSON.stringify([user?.id, selectedAtSend, prompt, quoted?.id ?? null]);
+        if (pendingTextRef.current?.key !== key) {
+            pendingTextRef.current = { key, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
+        }
+        const pending = pendingTextRef.current;
+        const optimistic: ChatMessage = { id: pending.id, role: "user", content: prompt, type: "text", createdAt: pending.createdAt, status: "sent", replyToId: quoted?.id ?? null };
         setMessages(current => mergeMessages(current, [optimistic]));
         try {
             const response = await fetch("/api/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId: selectedId, content: prompt, type: "text", messageId: optimistic.id, replyToId: quoted?.id ?? null }) });
             const payload = await response.json();
             if (!response.ok) throw new Error(payload.error || t.sendFailed);
-            const confirmed: ChatMessage = { id: payload.message.id, role: "user", content: payload.message.content, createdAt: payload.message.created_at, status: payload.message.status, replyToId: payload.message.reply_to_id ?? null };
-            setMessages(current => mergeMessages(confirmed.id === optimistic.id ? current : current.filter(message => message.id !== optimistic.id), [confirmed]));
+            const confirmed: ChatMessage = { id: payload.message.id, role: "user", content: payload.message.content, type: "text", createdAt: payload.message.created_at, status: payload.message.status, replyToId: payload.message.reply_to_id ?? null };
+            if (pendingTextRef.current === pending) pendingTextRef.current = null;
+            if (stillActive()) setMessages(current => mergeMessages(confirmed.id === optimistic.id ? current : current.filter(message => message.id !== optimistic.id), [confirmed]));
         } catch {
-            setMessages(current => mergeMessages(current.filter(message => message.id !== optimistic.id), [{ id: crypto.randomUUID(), role: "model", content: t.sendFailed, createdAt: new Date().toISOString() }]));
+            if (stillActive()) {
+                setMessages(current => current.filter(message => message.id !== optimistic.id));
+                setReplyTo(quoted);
+            }
+            throw new Error(t.sendFailed);
         } finally { setIsSending(false); loadConversations(); }
     }
 
@@ -990,6 +1048,7 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
                         {headerAvatar}
                         <div className="chat-title"><h2>{selectedConversation.name}</h2><p className={typingUser !== null ? "typing" : ""}>{presenceSubtitle}</p></div>
                     </>}
+                {activeConvId && <button className="icon-button" type="button" aria-label={tools.search} title={tools.search} onClick={() => setSearchOpen(true)}><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></svg></button>}
                 {canCall && <>
                     <button className="icon-button call-button" type="button" aria-label={t.call} title={t.call} onClick={() => startConversationCall("audio")}>📞</button>
                     <button className="icon-button call-button" type="button" aria-label={t.videoCall} title={t.videoCall} onClick={() => startConversationCall("video")}>📹</button>
@@ -1007,14 +1066,16 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
             <div className="message-list" ref={listRef} onScroll={handleListScroll} onClick={event => { if (event.target === event.currentTarget) setActionsForId(null); }}>
                 {loadingOlder && <div className="list-status"><span className="spinner" aria-hidden="true" />{t.loadingOlder}</div>}
                 {!loadingOlder && !hasOlder && hasHistory && <div className="list-status">{t.historyStart}</div>}
-                {messages.map(message => <MessageBubble key={message.id} messageId={message.id} content={message.content} outgoing={message.role === "user"} createdAt={message.createdAt} status={message.status} isAudio={message.type === "audio"} audioUrl={message.audioUrl} audioPath={message.audioPath} onResignAudio={resignAudioUrl} audioFallback={t.voiceUnavailable} senderName={isGroup && message.role !== "user" ? (message.senderId ? roster[message.senderId] ?? t.member : undefined) : undefined} replyId={message.replyToId ?? null} replyTo={replyPreview(message)} highlight={highlightId === message.id} canReply={canReplyInChat} onReply={() => startReply(message)} onQuoteClick={jumpToMessage} deleted={Boolean(message.deletedAt)} reactions={message.reactions} selfId={user.id} canReact={canReplyInChat} reacting={reactingToId === message.id} onReact={() => setReactingToId(current => current === message.id ? null : message.id)} canDelete={message.role === "user" && selectedId !== "ai-gemini"} onDelete={() => void removeMessage(message)} onToggleReaction={emoji => void toggleReaction(message, emoji)} actionsOpen={actionsForId === message.id} onToggleActions={() => setActionsForId(current => current === message.id ? null : message.id)} labels={{ reply: t.reply, unavailable: t.replyUnavailable, voice: t.voicePreview, react: t.react, remove: t.remove, deleted: t.deleted }} />)}
+                {messages.map(message => <MessageBubble key={message.id} messageId={message.id} content={message.content} outgoing={message.role === "user"} createdAt={message.createdAt} status={message.status} isAudio={message.type === "audio"} audioUrl={message.audioUrl} audioPath={message.audioPath} onResignAudio={resignAudioUrl} audioFallback={t.voiceUnavailable} senderName={isGroup && message.role !== "user" ? (message.senderId ? roster[message.senderId] ?? t.member : undefined) : undefined} replyId={message.replyToId ?? null} replyTo={replyPreview(message)} highlight={highlightId === message.id} canReply={canReplyInChat} onReply={() => startReply(message)} onQuoteClick={jumpToMessage} deleted={Boolean(message.deletedAt)} reactions={message.reactions} selfId={user.id} canReact={canReplyInChat} reacting={reactingToId === message.id} onReact={() => setReactingToId(current => current === message.id ? null : message.id)} canDelete={message.role === "user" && selectedId !== "ai-gemini"} onDelete={() => void removeMessage(message)} onToggleReaction={emoji => void toggleReaction(message, emoji)} actionsOpen={actionsForId === message.id} onToggleActions={() => setActionsForId(current => current === message.id ? null : message.id)} onCopy={!message.deletedAt && (!message.type || message.type === "text") ? () => void copyMessage(message) : undefined} onEdit={canReplyInChat && message.role === "user" && message.type === "text" ? () => openMessageTool("edit", message) : undefined} onForward={canReplyInChat && message.type === "text" ? () => openMessageTool("forward", message) : undefined} toolLabels={tools} labels={{ reply: t.reply, unavailable: t.replyUnavailable, voice: t.voicePreview, react: t.react, remove: t.remove, deleted: t.deleted }} />)}
                 {isSending && selectedId === "ai-gemini" && <div className="message-row"><div className="bubble">{t.typing}</div></div>}
             </div>
+            <div className="chat-composer">
+            {actionNotice && <div className="chat-notice" role="status">{actionNotice}</div>}
             {convBlocked && selectedConversation.otherUserId ? <div className="blocked-banner">
                 <span>{blockedIds.has(selectedConversation.otherUserId) ? t.blockedByYou : t.blockedNotice}</span>
                 {blockedIds.has(selectedConversation.otherUserId) && <button type="button" onClick={toggleBlock}>{t.unblock}</button>}
             </div> : <>
-                {actionError && <div className="chat-error">{actionError}</div>}
+                {actionError && <div className="chat-error" role="alert">{actionError}</div>}
                 {reactingMessage && <div className="composer-react">
                     <span className="composer-react-title">{t.react}</span>
                     {REACTION_EMOJIS.map(emoji => <button key={emoji} className={`react-emoji ${myReactionEmoji === emoji ? "active" : ""}`} type="button" aria-label={emoji} onClick={() => void toggleReaction(reactingMessage, emoji)}>{emoji}</button>)}
@@ -1027,9 +1088,12 @@ export default function PulseApp({ initialMode = "login" }: { initialMode?: "log
                     </div>
                     <button className="icon-button" type="button" aria-label={t.cancelReply} onClick={() => setReplyTo(null)}>✕</button>
                 </div>}
-                <MessageInput key={activeConvId ?? "pending"} placeholder={t.write} disabled={isSending} allowAudio={selectedId !== "ai-gemini" && Boolean(activeConvId)} labels={{ record: t.record, stop: t.stop, cancel: t.cancel, unavailable: t.micUnavailable, failed: t.voiceFailed }} onSend={sendMessage} onSendAudio={sendVoiceMessage} onTyping={notifyTyping} />
+                <MessageInput key={activeConvId ?? "pending"} placeholder={t.write} sendLabel={tools.send} sendFailed={t.sendFailed} disabled={isSending} allowAudio={selectedId !== "ai-gemini" && Boolean(activeConvId)} labels={{ record: t.record, stop: t.stop, cancel: t.cancel, unavailable: t.micUnavailable, failed: t.voiceFailed }} onSend={sendMessage} onSendAudio={sendVoiceMessage} onTyping={notifyTyping} />
             </>}
+            </div>
         </section>
+        {searchOpen && activeConvId && <MessageSearch key={activeConvId} conversationId={activeConvId} selfId={user.id} names={roster} labels={tools} onClose={() => setSearchOpen(false)} />}
+        {messageTool && <MessageToolsDialog key={`${messageTool.mode}-${messageTool.message.id}`} mode={messageTool.mode} message={messageTool.message} conversationId={messageTool.conversationId} destinations={conversations.filter(item => item.id !== messageTool.conversationId && (!item.otherUserId || !blockedIds.has(item.otherUserId)))} labels={tools} onClose={() => setMessageTool(null)} onSaved={applyEditedMessage} onForwarded={() => { setActionNotice(tools.forwarded); void loadConversations(); }} />}
         {profileOpen && user && <ProfileModal userId={user.id} email={user.email} name={profile?.name ?? ""} username={profile?.username ?? null} status={profile?.status ?? null} avatar={profile?.avatar ?? null} install={{ canInstall, isIos, installed }} onInstall={() => void promptInstall()} labels={{ title: t.profile, changePhoto: t.changePhoto, uploading: t.uploading, badType: t.photoBadType, failed: t.photoFailed, logout: t.logout, close: t.close, name: t.name, username: t.username, bio: t.bio, bioPlaceholder: t.bioPlaceholder, save: t.save, saving: t.saving, saved: t.saved, usernameTaken: t.usernameTaken, usernameInvalid: t.usernameInvalid, install: t.install, installHelp: t.installHelp, iosInstallHint: t.iosInstallHint, installed: t.installed }} onSaved={values => { setProfile(current => current ? { ...current, name: values.name, username: values.username, status: values.status, avatar: values.avatar } : current); void loadConversations(); }} onClose={() => setProfileOpen(false)} onLogout={logout} />}
         {contactProfile && <ContactProfileModal profile={contactProfile} blocked={blockedIds.has(contactProfile.id)} language={language} labels={{ title: t.contactProfile, bio: t.bio, noBio: t.noBio, online: t.online, offline: t.offline, block: t.block, unblock: t.unblock, close: t.close }} onToggleBlock={() => void toggleBlockFor(contactProfile.id)} onClose={() => setContactProfile(null)} />}
         {newChatOpen && <div className="modal-overlay" onClick={closeNewChat}>

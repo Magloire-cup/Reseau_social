@@ -7,7 +7,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-test-module-mocks --test tests/message-validation.test.mjs tests/messages-api.test.mjs",
+    "test:browser": "node --test tests/browser/pulse.test.ts"
   },
   "dependencies": {
     "@clerk/localizations": "^4.20.0",
@@ -24,6 +26,8 @@
     "@types/node": "^22.10.0",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
+    "esbuild": "0.28.2",
+    "playwright-core": "1.64.1",
     "typescript": "^5.7.2"
   }
 }
